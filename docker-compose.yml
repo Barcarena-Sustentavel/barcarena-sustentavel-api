@@ -1,0 +1,19 @@
+version: '3.9'
+services:
+  barcarena-sustentavel-postgresql:
+    image: postgres:16.4
+    container_name: barcarena-sustentavel-postgresql
+    environment:
+      POSTGRES_DB: barcarena_sustentavel
+      POSTGRES_USER: barcarena_sustentavel
+      POSTGRES_PASSWORD: barcarenasustentavel
+    volumes:
+      - ./initdb.sh:/docker-entrypoint-initdb.d/initdb.sh
+    ports:
+      - "5432:5432"
+    networks:
+      - barcarena-sustentavel-network
+
+networks:
+  barcarena-sustentavel-network:
+    driver: bridge
