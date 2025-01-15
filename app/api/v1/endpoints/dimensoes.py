@@ -1,20 +1,15 @@
 from fastapi import APIRouter
-from app.models import models
+from domain.models import dimensao, referencias, indicador,kml, anexo
 
 router = APIRouter()
 
-#@router.get("/dimensoes/")
-#async def get_dimensoes():
-#    return {"template_name": "index.html"}
+@router.get("/dimensoes/{dimensaoNome}/", response_model= dimensao.Dimensao)
+async def get_dimensao(dimensaoNome: str):
+    return {dimensao.Dimensao(nome=dimensao)}
 
-@router.get("/dimensoes/{dimensao}/", response_model= models.Dimensao)
-async def get_dimensao(dimensao: str):
-    #template_name = "dimensao.html"
-    return {"context": models.Dimensao(nome=dimensao)}
-
-@router.get("/dimensoes/kml/{dimensao}/", response_model= models.Kml)
-async def get_kml(dimensao: str):
-    return {"context": models.Kml(fkDimensao=dimensao)}
+@router.get("/dimensoes/kml/{dimensaoNome}/", response_model= kml.KML)
+async def get_kml(dimensaoNome: str):
+    return {kml.KML(fkDimensao_id=dimensao.Dimensao(nome=dimensaoNome))}
 
 @router.get("/dimensoes/kmlCoords/{kml}/", response_model= models.Referencia)
 async def get_kml_coords(kml: str):
