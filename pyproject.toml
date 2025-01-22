@@ -10,8 +10,11 @@ python = "^3.13"
 alembic = "^1.14.0"
 sqlalchemy = "^2.0.36"
 psycopg2 = "^2.9.10"
+fastapi = "^0.115.6"
 
 
+[tool.poetry.dev-dependencies]
+uvicorn = "^0.34.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
