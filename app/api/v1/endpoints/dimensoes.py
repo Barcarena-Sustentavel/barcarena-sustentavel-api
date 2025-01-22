@@ -1,24 +1,25 @@
 from fastapi import APIRouter
-from domain.models import dimensao, referencias, indicador,kml, anexo, contribuicao
-
+#from domain.models import dimensao, referencias, indicador,kml, anexo, contribuicao
+from domain.schemas import dimesao_schema as dimensao, anexo_schema as anexo, contribuicao_schema as contribuicao, indicador_schema as indicador, referencia_schema as referencias, kml_schema as kml
+from http import HTTPStatus
 router = APIRouter()
 
-@router.get("/dimensoes/{dimensaoNome}/", response_model= dimensao.Dimensao)
+@router.get("/dimensoes/{dimensaoNome}/", status_code=HTTPStatus.OK)
 async def get_dimensao(dimensaoNome: str):
-    return {dimensao.Dimensao(nome=dimensao),referencias.Referencias(fkDimensao_id=dimensaoNome)}
+    return {dimensao.DimensaoSchema(nome=dimensaoNome),referencias.ReferenciaSchema(fkDimensao_id=dimensaoNome)}
 
-@router.get("/dimensoes/kml/{dimensaoNome}/", response_model= kml.KML)
+@router.get("/dimensoes/kml/{dimensaoNome}/", response_model= kml.KMLSchema, status_code=HTTPStatus.OK)
 async def get_kml(dimensaoNome: str):
-    return {kml.KML(fkDimensao_id=dimensao.Dimensao(nome=dimensaoNome))}
+    return {kml.KMLSchema(fkDimensao_id=dimensaoNome)}
 
-@router.get("/dimensoes/kmlCoords/{kmlNome}/", response_model= kml.KML)
+@router.get("/dimensoes/kmlCoords/{kmlNome}/", response_model= kml.KMLSchema, status_code=HTTPStatus.OK)
 async def get_kml_coords(kmlNome: str):
-    return {kml.KML(fkDimensao_id=dimensao.Dimensao(nome=kmlNome))}
+    return {kml.KMLSchema(nome=kmlNome)}
 
-@router.get("/dimensoes/{dimensao}/{indicador}/", response_model= indicador.Indicador)
+@router.get("/dimensoes/{dimensaoNome}/{indicadorNome}/", status_code=HTTPStatus.OK)
 async def get_indicador(dimensaoNome: str, indicadorNome: str):
-    return {indicador.Indicador(nome=indicadorNome), anexo.Anexo(fkIndicador_id=indicadorNome, fkDimensao_id=dimensaoNome)}
+    return {indicador.IndicadorSchema(nome=indicadorNome), anexo.AnexoSchema(fkIndicador_id=indicadorNome, fkDimensao_id=dimensaoNome)}
 
-@router.post("contribuicao/", response_model= contribuicao.DimensaoContribuicao)
-async def post_contribuicao(contribuicao: contribuicao.DimensaoContribuicao):
+@router.post("contribuicao/", response_model= contribuicao.ContribuicaoSchema)
+async def post_contribuicao(contribuicao: contribuicao.ContribuicaoSchema, status_code=HTTPStatus.CREATED):
     return contribuicao
