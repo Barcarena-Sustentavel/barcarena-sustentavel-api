@@ -1,7 +1,6 @@
-from models import Base
 from sqlalchemy import Column, Integer, String  
 from sqlalchemy.orm import relationship
-
+from domain.models.base import Base
 #conexao com o banco para fazer operações dql e ddl
 class Dimensao(Base):
     __tablename__ = "Dimensao" #tabela no banco
