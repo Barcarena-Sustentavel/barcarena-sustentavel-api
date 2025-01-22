@@ -10,7 +10,7 @@ services:
     volumes:
       - ./initdb.sh:/docker-entrypoint-initdb.d/initdb.sh
     ports:
-      - "8080:8080"
+      - "5432:5432"
     networks:
       - barcarena-sustentavel-network
 

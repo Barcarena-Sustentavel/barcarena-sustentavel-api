@@ -1,15 +1,19 @@
-from domain.models.base import Base
-from sqlalchemy import Column, Integer, String  
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
+from app.domain.models.base import Base
 
-#conexao com o banco para fazer operações dql e ddl
 class Anexo(Base):
-    __tablename__ = "Anexos" #tabela no banco
-    __table_args__ = {"schema": "barcarena_sustentavel"} #schema
+    __tablename__ = "Anexos"
+    __table_args__ = {"schema": "barcarena_sustentavel"}
 
     id = Column(Integer, primary_key=True)
-    path = Column(String, nullable=True)
-    fkDimensao_id = relationship("Dimensao", back_populates="Anexos")
-    fkKML_id = relationship("KML", back_populates="Anexos")
-    fkIndicador_id = relationship("Indicadores", back_populates="Anexos")
-    fkContribuicao_id = relationship("Contribuicao", back_populates="Anexos")
+    path = Column(String, nullable=False)
+    fkDimensao_id = Column(Integer, ForeignKey("barcarena_sustentavel.Dimensao.id"))
+    fkKML_id = Column(Integer, ForeignKey("barcarena_sustentavel.KML.id"), nullable=False)
+    fkIndicador_id = Column(Integer, ForeignKey("barcarena_sustentavel.Indicadores.id"))
+    fkContribuicao_id = Column(Integer, ForeignKey("barcarena_sustentavel.Contribuicao.id"))
+
+    dimensao = relationship("Dimensao", back_populates="anexos")
+    kml = relationship("KML", back_populates="anexos")
+    indicador = relationship("Indicador", back_populates="anexos")
+    contribuicao = relationship("Contribuicao", back_populates="anexos")
