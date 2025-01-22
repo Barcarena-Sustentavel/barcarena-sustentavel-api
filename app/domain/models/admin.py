@@ -1,4 +1,4 @@
-from models import Base
+from domain.models.base import Base
 from sqlalchemy import Column, Integer, String, DateTime
 
 #conexao com o banco para fazer operações dql e ddl
