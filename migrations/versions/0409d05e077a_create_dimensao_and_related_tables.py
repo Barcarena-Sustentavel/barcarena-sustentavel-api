@@ -19,10 +19,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Criando o schema barcarena_sustentavel se não existir
     op.execute('CREATE SCHEMA IF NOT EXISTS barcarena_sustentavel')
 
-    # Criação das tabelas no schema barcarena_sustentavel
     op.create_table(
         'Dimensao',
         sa.Column('nome', sa.Text, nullable=False),
@@ -103,7 +101,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Removendo as tabelas e schema
     op.drop_table('Anexo', schema='barcarena_sustentavel')
     op.drop_table('Contribuicao', schema='barcarena_sustentavel')
     op.drop_table('Referencias', schema='barcarena_sustentavel')
