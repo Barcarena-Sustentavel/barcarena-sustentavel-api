@@ -1,13 +1,14 @@
-from domain.models.base import Base
-from sqlalchemy import Column, Integer, String  
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
+from app.domain.models.base import Base
 
-#conexao com o banco para fazer operações dql e ddl
 class Referencias(Base):
-    __tablename__ = "Referencias" #tabela no banco
-    __table_args__ = {"schema": "barcarena_sustentavel"} #schema
+    __tablename__ = "Referencias"
+    __table_args__ = {"schema": "barcarena_sustentavel"}
 
     id = Column(Integer, primary_key=True)
-    nome = Column(String, nullable=True)
-    link = Column(String, nullable=False)
-    fkDimensao_id = relationship("Dimensao", back_populates="contribuicao")
+    nome = Column(String, nullable=False)
+    link = Column(String, nullable=True)
+    fkDimensao_id = Column(Integer, ForeignKey("barcarena_sustentavel.Dimensao.id"), nullable=False)
+
+    dimensao = relationship("Dimensao", back_populates="referencias")

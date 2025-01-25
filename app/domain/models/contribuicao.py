@@ -1,15 +1,17 @@
-from domain.models.base import Base
-from sqlalchemy import Column, Integer, String  
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
+from app.domain.models.base import Base
 
-#conexao com o banco para fazer operações dql e ddl
-class DimensaoContribuicao(Base):
-    __tablename__ = "Contribuicao" #tabela no banco
-    __table_args__ = {"schema": "barcarena_sustentavel"} #schema
+class Contribuicao(Base):
+    __tablename__ = "Contribuicao"
+    __table_args__ = {"schema": "barcarena_sustentavel"}
 
     id = Column(Integer, primary_key=True)
     nome = Column(String, nullable=True)
     email = Column(String, nullable=True)
     telefone = Column(String, nullable=True)
     comentario = Column(String, nullable=False)
-    fkDimensao_id = relationship("Dimensao", back_populates="Contribuicao")
+    fkDimensao_id = Column(Integer, ForeignKey("barcarena_sustentavel.Dimensao.id"), nullable=False)
+
+    dimensao = relationship("Dimensao", back_populates="contribuicoes")
+    anexos = relationship("Anexo", back_populates="contribuicao")
