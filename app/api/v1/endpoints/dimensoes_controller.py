@@ -1,7 +1,10 @@
 from fastapi import APIRouter,Depends, HTTPException
 from app.domain.schemas import dimesao_schema, anexo_schema, contribuicao_schema ,indicador_schema, referencia_schema, kml_schema
 from app.domain.models import dimensao , indicador, anexo, contribuicao,  indicador,  referencias,  kml
+from app.domain.schemas.response_schemas.get_dimensao_response import DimensaoData
+from app.domain.schemas.response_schemas.get_indicador_response import IndicadorData
 from http import HTTPStatus
+from typing import List
 from app.core.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -12,8 +15,8 @@ dimensoes = APIRouter()
 #Retorna todos os indicadores de uma dimensão
 #dimensaoNome: nome da dimensão
 #session: sessão do banco de dados
-@dimensoes.get("/dimensoes/{dimensaoNome}/")
-async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
+@dimensoes.get("/dimensoes/{dimensaoNome}/", response_model=DimensaoData)
+async def get_dimensao(dimensaoNome: dimesao_schema.DimensaoParameters, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     indicadores = session.scalars(select(indicador.Indicador).where(
         indicador.Indicador.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     ))
@@ -33,8 +36,8 @@ async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db),sta
     
     return {"indicadores":indicadoresDimensao, "referencias":referenciasIndicador}
 
-@dimensoes.get("/dimensoes/kml/{dimensaoNome}/")
-async def get_kml(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK):
+@dimensoes.get("/dimensoes/kml/{dimensaoNome}/", response_model=List[kml_schema.KMLSchema])
+async def get_kml(dimensaoNome: dimesao_schema.DimensaoParameters, session: Session = Depends(get_db),status_code=HTTPStatus.OK):
     kmls = session.scalars(select(kml.KML).where(
           kml.KML.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
          )
@@ -46,17 +49,17 @@ async def get_kml(dimensaoNome: str, session: Session = Depends(get_db),status_c
     
     return {"kmls":kmls_list}
 
-@dimensoes.get("/dimensoes/kmlCoords/{kmlNome}/")
-async def get_kml_coords(kmlNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
+@dimensoes.get("/dimensoes/kmlCoords/{kmlNome}/", response_model=anexo_schema.AnexoSchema)
+async def get_kml_coords(kmlNome: kml_schema.KMLParameters, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
     anexos = session.scalars(select(anexo.Anexo).where(
         anexo.Anexo.fkKML_id == await get_model_id(kmlNome, session, kml.KML)
     ))
     anexoJson = anexo_schema.AnexoSchema(id=anexos.all()[0].id, fkIndicador=anexos.all()[0].fkIndicador_id, fkKML=anexos.all()[0].fkKML_id, path=anexos.all()[0].path)
-    return {"cordenadas":anexoJson.path}
+    return {"coordenadas":anexoJson}
 
 
-@dimensoes.get("/dimensoes/{dimensaoNome}/{indicadorNome}/")
-async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
+@dimensoes.get("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
+async def get_indicador(dimensaoNome: dimesao_schema.DimensaoParameters, indicadorNome: indicador_schema.IndicadorParameters, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
     indicadorDimensao = session.scalar(select(indicador.Indicador).where(
         indicador.Indicador.nome == indicadorNome and indicador.Indicador.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     ))
