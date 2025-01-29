@@ -17,6 +17,9 @@ dimensoes = APIRouter()
 #session: sessão do banco de dados
 @dimensoes.get("/dimensoes/{dimensaoNome}/", response_model=DimensaoData)
 async def get_dimensao(dimensaoNome: dimesao_schema.DimensaoParameters, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
+    dimensao_data = session.scalar(select(dimensao.Dimensao).where(
+        dimensao.Dimensao.nome == dimensaoNome
+    ))
     indicadores = session.scalars(select(indicador.Indicador).where(
         indicador.Indicador.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     ))
@@ -29,12 +32,14 @@ async def get_dimensao(dimensaoNome: dimesao_schema.DimensaoParameters, session:
     indicadoresall = indicadores.all()
     refrenciasall = refrencias.all()
 
+    dimensao_data_json = dimesao_schema.DimensaoSchema(id=dimensao_data.id, nome=dimensao_data.nome, descricao=dimensao_data.descricao)
+    print(dimensao_data_json)
     for a in indicadoresall:
         indicadoresDimensao.append(indicador_schema.IndicadorSchema(id=a.id, fkDimensao=a.fkDimensao_id, nome=a.nome))
     for b in refrenciasall:
         referenciasIndicador.append(referencia_schema.ReferenciaSchema(id=b.id, nome=b.nome, fkDimensao=b.fkDimensao_id, link=b.link))
     
-    return {"indicadores":indicadoresDimensao, "referencias":referenciasIndicador}
+    return {"dimensao":dimensao_data_json, "indicadores":indicadoresDimensao, "referencias":referenciasIndicador}
 
 @dimensoes.get("/dimensoes/kml/{dimensaoNome}/", response_model=List[kml_schema.KMLSchema])
 async def get_kml(dimensaoNome: dimesao_schema.DimensaoParameters, session: Session = Depends(get_db),status_code=HTTPStatus.OK):
