@@ -32,8 +32,11 @@ async def get_dimensao(dimensaoNome: dimesao_schema.DimensaoParameters, session:
     indicadoresall = indicadores.all()
     refrenciasall = refrencias.all()
 
-    dimensao_data_json = dimesao_schema.DimensaoSchema(id=dimensao_data.id, nome=dimensao_data.nome, descricao=dimensao_data.descricao)
-    print(dimensao_data_json)
+    try:
+        dimensao_data_json = dimesao_schema.DimensaoSchema(id=dimensao_data.id, nome=dimensao_data.nome, descricao=dimensao_data.descricao)
+    except AttributeError:
+        dimensao_data_json = dimesao_schema.DimensaoSchema(id=0, nome="Nome Dimensão", descricao="Descrição Dimensão")
+    #print(dimensao_data_json)
     for a in indicadoresall:
         indicadoresDimensao.append(indicador_schema.IndicadorSchema(id=a.id, fkDimensao=a.fkDimensao_id, nome=a.nome))
     for b in refrenciasall:
@@ -77,33 +80,61 @@ async def get_indicador(dimensaoNome: dimesao_schema.DimensaoParameters, indicad
 
     return {"indicador":indicadorDimensaoJson, "anexo":anexoIndicadorJson}
 
+@dimensoes.patch("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
+async def update_indicador(
+    dimensaoNome: str,
+    indicadorNome: str,
+    indicador_update_data: indicador_schema.IndicadorSchema,#
+    anexo_update_data: anexo_schema.AnexoSchema,
+    session: Session = Depends(get_db)):
+        #Acha o indicador existente baseado no nome e no id da dimensão
+        indicadorDimensao = session.scalar(select(indicador.Indicador).where(
+            indicador.Indicador.nome == indicadorNome,
+            indicador.Indicador.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+        ))
+        
+        #Se indicador não achado, retorna erro
+        if not indicadorDimensao:
+            raise HTTPException(status_code=404, detail="Indicator not found")
+
+        #itera sobre os atributos do atributo do indicador e atualiza o seu valor para o 
+        #que foi achado no banco de dados
+        for field, value in indicador_update_data.model_dump(exclude_unset=True).items():
+            setattr(indicadorDimensao, field, value)
+
+        
+        anexoIndicador = session.scalar(select(anexo.Anexo).where(
+            anexo.Anexo.fkIndicador_id == indicadorDimensao.id
+        ))
+
+        if anexoIndicador != None:
+            for field, value in anexo_update_data.model_dump(exclude_unset=True).items():
+                setattr(anexoIndicador, field, value)
+
+        session.commit()
+
+        # Prepare response
+        indicadorDimensaoJson = indicador_schema.IndicadorSchema(
+            id=indicadorDimensao.id,
+            nome=indicadorDimensao.nome,
+            fkDimensao=indicadorDimensao.fkDimensao_id
+        )
+        
+        anexoIndicadorJson = anexo_schema.AnexoSchema(
+            id=anexoIndicador.id,
+            fkIndicador=anexoIndicador.fkIndicador_id,
+            fkKml=anexoIndicador.fkKML_id,
+            path=anexoIndicador.path
+        )
+
+        return {"indicador": indicadorDimensaoJson, "anexo": anexoIndicadorJson}
+
+
 @dimensoes.post("/contribuicao/")
 async def post_contribuicao(contribuicao: contribuicao_schema.ContribuicaoSchema, status_code=HTTPStatus.CREATED):
     return contribuicao
 
-#from fastapi import APIRouter
-#
-#dimensoes = APIRouter()
-#
-#@dimensoes.get("/dimensoes/{dimensaoNome}/")
-#async def get_dimensao(dimensaoNome: str):
-#
-#    return f"Dimensão {dimensaoNome} encontrada!"
-#
-#@dimensoes.get("/dimensoes/kml/{dimensaoNome}/")
-#async def get_kml(dimensaoNome: str):
-#
-#    return f"KML associado à Dimensão {dimensaoNome} encontrado!"
-#
-#@dimensoes.get("/dimensoes/kmlCoords/{kmlNome}/")
-#async def get_kml_coords(kmlNome: str):
-#
-#    return f"KML com coordenadas para {kmlNome} encontrado!"
-#
-#@dimensoes.get("/dimensoes/{dimensao}/{indicador}/")
-#async def get_indicador(dimensaoNome: str, indicadorNome: str):
-#
-#    return f"Indicador {indicadorNome} da Dimensão {dimensaoNome} encontrado!"
+
 
 
 #Função para retornar o id a partir de um modelo
@@ -112,6 +143,9 @@ async def post_contribuicao(contribuicao: contribuicao_schema.ContribuicaoSchema
 #model: modelo da dimensão, localizado em app/domain/models/
 async def get_model_id(dimensao_nome: str, session: Session, model):
     model_id = session.scalar(select(model).where(
-        model.nome == dimensao_nome
+            model.nome == dimensao_nome
     ))
-    return model_id.id
+    try:
+        return model_id.id
+    except AttributeError:
+        return 0
