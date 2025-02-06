@@ -4,10 +4,10 @@ from enum import Enum
 class AnexoSchema(BaseModel):
     id: int
     path: str
-    fkIndicador: int
-    fkDimensao: int
-    fkKml: int
-    fkContribuicao: int
+    fkIndicador: int = None
+    fkDimensao: int = None
+    fkKml: int = None
+    fkContribuicao: int = None
 
     class Config:
         from_atributes = True

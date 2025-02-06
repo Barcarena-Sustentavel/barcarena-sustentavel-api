@@ -4,7 +4,7 @@ from app.domain.models import dimensao , indicador, anexo, contribuicao,  indica
 from app.domain.schemas.response_schemas.get_dimensao_response import DimensaoData
 from app.domain.schemas.response_schemas.get_indicador_response import IndicadorData
 from http import HTTPStatus
-from typing import List
+from typing import List, Dict, TypedDict
 from app.core.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -44,26 +44,44 @@ async def get_dimensao(dimensaoNome: dimesao_schema.DimensaoParameters, session:
     
     return {"dimensao":dimensao_data_json, "indicadores":indicadoresDimensao, "referencias":referenciasIndicador}
 
-@dimensoes.get("/dimensoes/kml/{dimensaoNome}/", response_model=List[kml_schema.KMLSchema])
-async def get_kml(dimensaoNome: dimesao_schema.DimensaoParameters, session: Session = Depends(get_db),status_code=HTTPStatus.OK):
-    kmls = session.scalars(select(kml.KML).where(
-          kml.KML.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
-         )
-    )
-    kmls_list = []
-
-    for k in kmls.all():
-        kmls_list.append(kml_schema.KMLSchema(id=k.id, nome=k.name, fkDimensao=k.fkDimensao_id))
-    
+@dimensoes.get("/dimensoes/kml/{dimensaoNome}/",status_code=HTTPStatus.OK)
+async def get_kml(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK):
+    #kmls = session.scalars(select(kml.KML).where(
+    #      kml.KML.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    #     )
+    #)
+    #kmls_list = []
+#
+    #for k in kmls.all():
+    #    kmls_list.append(kml_schema.KMLSchema(id=k.id, nome=k.name, fkDimensao=k.fkDimensao_id))
+    kmls_list = [
+    kml_schema.KMLSchema(id=1, nome="Mapa de Vulnerabilidade Social", fkDimensao=1),
+    kml_schema.KMLSchema(id=2, nome="Mapa de Áreas Verdes", fkDimensao=2),
+    kml_schema.KMLSchema(id=3, nome="Mapa de Desenvolvimento Local", fkDimensao=1),
+    kml_schema.KMLSchema(id=4, nome="Mapa de Recursos Hídricos", fkDimensao=3),
+    kml_schema.KMLSchema(id=5, nome="Mapa de Infraestrutura", fkDimensao=2)
+]
     return {"kmls":kmls_list}
 
-@dimensoes.get("/dimensoes/kmlCoords/{kmlNome}/", response_model=anexo_schema.AnexoSchema)
-async def get_kml_coords(kmlNome: kml_schema.KMLParameters, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
-    anexos = session.scalars(select(anexo.Anexo).where(
-        anexo.Anexo.fkKML_id == await get_model_id(kmlNome, session, kml.KML)
-    ))
-    anexoJson = anexo_schema.AnexoSchema(id=anexos.all()[0].id, fkIndicador=anexos.all()[0].fkIndicador_id, fkKML=anexos.all()[0].fkKML_id, path=anexos.all()[0].path)
-    return {"coordenadas":anexoJson}
+@dimensoes.get("/dimensoes/kmlCoords/{kmlNome}/")
+async def get_kml_coords(kmlNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
+    #anexos = session.scalars(select(anexo.Anexo).where(
+    #    anexo.Anexo.fkKML_id == await get_model_id(kmlNome, session, kml.KML)
+    #))
+    path_generico = "" 
+    if kmlNome ==  "Mapa de Áreas Verdes":
+        path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/150130305000001P.kml"
+    
+    if kmlNome == "Mapa de Desenvolvimento Local":
+        path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/3G_VIVO_pa_intersect_clean.kml"
+    
+    if kmlNome == "Mapa de Infraestrutura":
+        path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/3G_TIM_pa_intersect_clean.kml"    
+    
+    anexo = open(path_generico, "r")
+    
+    
+    return {"coordenadas":anexo.read()}
 
 
 @dimensoes.get("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
