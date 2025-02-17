@@ -1,11 +1,12 @@
 from pydantic import BaseModel
 from enum import Enum
+from typing import Optional
 
 class ContribuicaoSchema(BaseModel):
     id: int
-    nome: str
-    email: str
-    telefone: str
+    nome: str = None
+    email: str = None
+    telefone: str = None
     comentario: str
     fkDimensao_id: int 
 
