@@ -4,6 +4,8 @@ from enum import Enum
 class AnexoSchema(BaseModel):
     id: int
     path: str
+    descricaoGrafico: str = None
+    tipoGrafico: str = None
     fkIndicador: int = None
     fkDimensao: int = None
     fkKml: int = None
