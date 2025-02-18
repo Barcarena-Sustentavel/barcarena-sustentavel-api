@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from sqlalchemy import select
 from http import HTTPStatus
-from aux.get_model_id import get_model_id
+from .aux.get_model_id import get_model_id
 from minio import Minio
 
 kmlRouter = APIRouter()

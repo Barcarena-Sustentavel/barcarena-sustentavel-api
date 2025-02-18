@@ -10,13 +10,11 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-
 # revision identifiers, used by Alembic.
 revision: str = '92f34c7eb2de'
 down_revision: Union[str, None] = '0409d05e077a'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
-
 
 def upgrade() -> None:
     op.add_column('Anexo', 
@@ -30,6 +28,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    #pass
     op.drop_column('Anexo', 'tipoGrafico', schema='barcarena_sustentavel')
     op.drop_column('Anexo', 'descricaoGrafico', schema='barcarena_sustentavel')
 

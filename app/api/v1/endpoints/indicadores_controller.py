@@ -4,47 +4,65 @@ from app.domain.models import dimensao , indicador, anexo,indicador
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from fastapi import APIRouter,Depends, HTTPException
-from aux.get_model_id import get_model_id
+from .aux.get_model_id import get_model_id
 from app.core.database import get_db
 from http import HTTPStatus
 
-indicadores = APIRouter()
+indicadorRouter = APIRouter()
 
-@indicadores.get("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
-async def get_indicador(dimensaoNome: dimesao_schema.DimensaoParameters, indicadorNome: indicador_schema.IndicadorParameters, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
+@indicadorRouter.get("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
+async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK): 
+    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     indicadorDimensao = session.scalar(select(indicador.Indicador).where(
-        indicador.Indicador.nome == indicadorNome and indicador.Indicador.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+        indicador.Indicador.nome == indicadorNome and indicador.Indicador.fkDimensao_id == dimensao_id
     ))
     anexoIndicador = session.scalar(select(anexo.Anexo).where(
         anexo.Anexo.fkIndicador_id == await get_model_id(indicadorNome, session, indicador.Indicador)
     ))
 
     indicadorDimensaoJson = indicador_schema.IndicadorSchema(id=indicadorDimensao.id, nome=indicadorDimensao.nome, fkDimensao=indicadorDimensao.fkDimensao_id)
-    anexoIndicadorJson = anexo_schema.AnexoSchema(id=anexoIndicador.id, fkIndicador=anexoIndicador.fkIndicador_id, fkKml=anexoIndicador.fkKML_id, path=anexoIndicador.path)
+    anexoIndicadorJson = anexo_schema.AnexoSchema(id=anexoIndicador.id,
+                                                fkDimensao=dimensao_id,
+                                                fkIndicador=anexoIndicador.fkIndicador_id, 
+                                                fkKml=anexoIndicador.fkKml_id,
+                                                fkContribuicao=anexoIndicador.fkContribuicao_id,
+                                                path=anexoIndicador.path,
+                                                tipoGrafico=anexoIndicador.tipoGrafico,
+                                                descricaoGrafico=anexoIndicador.descricaoGrafico)
 
     return {"indicador":indicadorDimensaoJson, "anexo":anexoIndicadorJson}
 
-@indicadores.post("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
+@indicadorRouter.post("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
 async def create_indicador(
     dimensaoNome: str,
     indicadorNome: str,
-    indicador_insert_data: indicador_schema.IndicadorSchema,
-    anexo_insert_data: anexo_schema.AnexoSchema,
+    dadosIndicador: indicador_schema.IndicadorSchema,
+    dadosAnexo: anexo_schema.AnexoSchema,
     session: Session = Depends(get_db)):
-    
-    new_indicador = indicador.Indicador(nome=indicador_insert_data.nome, fkDimensao_id=await get_model_id(dimensaoNome, session, dimensao.Dimensao))    
-    await session.add(new_indicador)
-    await session.commit()
-    await session.refresh(new_indicador)
-    
-    new_anexo_indicador = anexo.Anexo(fkIndicador_id=await get_model_id(indicadorNome, session, indicador.Indicador), fkKML_id=None, path=anexo_insert_data.path)
-    await session.add(new_anexo_indicador)
-    await session.commit()
-    await session.refresh(new_anexo_indicador)
-    
-    return await get_indicador(dimensaoNome, indicadorNome, session)
 
-@indicadores.patch("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
+    #print(dadosIndicador)
+    new_indicador = indicador.Indicador(nome=dadosIndicador.nome, fkDimensao_id=await get_model_id(dimensaoNome, session, dimensao.Dimensao))    
+    session.add(new_indicador)
+    session.commit()
+    session.refresh(new_indicador)
+    
+    new_anexo_indicador = anexo.Anexo(fkIndicador_id=await get_model_id(indicadorNome, session, indicador.Indicador), 
+                                    fkKml_id=dadosAnexo.fkKml, 
+                                    fkContribuicao_id=dadosAnexo.fkContribuicao,
+                                    path=dadosAnexo.path,
+                                    descricaoGrafico=dadosAnexo.descricaoGrafico,
+                                    tipoGrafico=dadosAnexo.tipoGrafico
+                                    )
+    session.add(new_anexo_indicador)
+    session.commit()
+    session.refresh(new_anexo_indicador)
+
+    indicador_response = await get_indicador(dimensaoNome, indicadorNome, session)
+    anexo_response = await get_anexo_indicador(dimensaoNome, indicadorNome, session)
+    response = {"indicador":dadosIndicador, "anexo":dadosAnexo}
+    return {"indicador":dadosIndicador, "anexo":[dadosAnexo]}
+
+@indicadorRouter.patch("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
 async def update_indicador(
     dimensaoNome: str,
     indicadorNome: str,
@@ -87,13 +105,13 @@ async def update_indicador(
         anexoIndicadorJson = anexo_schema.AnexoSchema(
             id=anexoIndicador.id,
             fkIndicador=anexoIndicador.fkIndicador_id,
-            fkKml=anexoIndicador.fkKML_id,
+            fkKml=anexoIndicador.fkKml_id,
             path=anexoIndicador.path
         )
 
         return {"indicador": indicadorDimensaoJson, "anexo": anexoIndicadorJson}
 
-@indicadores.delete("/dimensoes/{dimensaoNome}/{indicadorNome}/", status_code=HTTPStatus.NO_CONTENT)
+@indicadorRouter.delete("/dimensoes/{dimensaoNome}/{indicadorNome}/", status_code=HTTPStatus.NO_CONTENT)
 async def delete_indicador(
     dimensaoNome: str,
     indicadorNome: str,

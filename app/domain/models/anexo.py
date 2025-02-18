@@ -11,7 +11,7 @@ class Anexo(Base):
     tipoGrafico = Column(String, nullable=True)
     descricaoGrafico = Column(String, nullable=True)
     fkDimensao_id = Column(Integer, ForeignKey("barcarena_sustentavel.Dimensao.id"), nullable=False)
-    fkKML_id = Column(Integer, ForeignKey("barcarena_sustentavel.KML.id"), nullable=True)
+    fkKml_id = Column(Integer, ForeignKey("barcarena_sustentavel.KML.id"), nullable=True)
     fkIndicador_id = Column(Integer, ForeignKey("barcarena_sustentavel.Indicador.id"), nullable=True)
     fkContribuicao_id = Column(Integer, ForeignKey("barcarena_sustentavel.Contribuicao.id"), nullable=True)
 

@@ -1,15 +1,16 @@
 from pydantic import BaseModel
 from enum import Enum
+from typing import Optional
 #Funciona semelhante a uma serialização, utilizado para enviar o JSON
 class AnexoSchema(BaseModel):
-    id: int
+    id: Optional[int]
     path: str
-    descricaoGrafico: str = None
-    tipoGrafico: str = None
-    fkIndicador: int = None
-    fkDimensao: int = None
-    fkKml: int = None
-    fkContribuicao: int = None
+    descricaoGrafico: Optional[str] #str = None
+    tipoGrafico: Optional[str] #str = None
+    fkIndicador: Optional[int] 
+    fkDimensao: Optional[int] 
+    fkKml: Optional[int]
+    fkContribuicao: Optional[int]
 
     class Config:
         from_atributes = True

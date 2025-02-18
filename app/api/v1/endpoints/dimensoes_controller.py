@@ -7,14 +7,14 @@ from app.core.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Any  
-from aux.get_model_id import get_model_id
+from .aux.get_model_id import get_model_id
 
-dimensoes = APIRouter()
+dimensaoRouter = APIRouter()
 
 #Retorna todos os indicadores de uma dimensão
 #dimensaoNome: nome da dimensão
 #session: sessão do banco de dados
-@dimensoes.get("/dimensoes/{dimensaoNome}/", response_model=DimensaoData)
+@dimensaoRouter.get("/dimensoes/{dimensaoNome}/", response_model=DimensaoData)
 async def get_dimensao(dimensaoNome: dimesao_schema.DimensaoParameters, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     dimensao_data = session.scalar(select(dimensao.Dimensao).where(
         dimensao.Dimensao.nome == dimensaoNome
@@ -43,7 +43,7 @@ async def get_dimensao(dimensaoNome: dimesao_schema.DimensaoParameters, session:
     
     return {"dimensao":dimensao_data_json, "indicadores":indicadoresDimensao, "referencias":referenciasIndicador}
 
-@dimensoes.patch("/dimensoes/{dimensaoNome}/", response_model=DimensaoData)
+@dimensaoRouter .patch("/dimensoes/{dimensaoNome}/", response_model=DimensaoData)
 async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.DimensaoSchema,session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     dimensao_data = session.scalar(select(dimensao.Dimensao).where(
         dimensao.Dimensao.nome == dimensaoNome
@@ -63,7 +63,7 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
 
 #Retorna todos os nomes dos kmls e contribuições de uma dimensão
 #Criado somente para ser utilizado na parte de administrador
-@dimensoes.get("/dimensoesAdmin/{dimensaoNome}/")
+@dimensaoRouter .get("/dimensoesAdmin/{dimensaoNome}/")
 async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     get_dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     

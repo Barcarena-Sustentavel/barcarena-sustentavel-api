@@ -1,9 +1,10 @@
 from pydantic import BaseModel
 from enum import Enum
+from typing import Optional
 #Funciona semelhante a uma serialização, utilizado para enviar o JSON
 class IndicadorSchema(BaseModel):
-    id: int
-    fkDimensao: int
+    id: Optional[int]
+    fkDimensao: Optional[int]
     nome: str
 
     class Config:

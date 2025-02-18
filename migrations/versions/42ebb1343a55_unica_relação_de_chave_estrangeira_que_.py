@@ -19,9 +19,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.alter_column('Anexo', 'fkDimensao_id',
-                    nullable=False,
+                    #nullable=False,
                     existing_type=sa.ForeignKey('barcarena_sustentavel.Dimensao.id'))
-    op.alter_column('Anexo', 'fkKML_id',
+    op.alter_column('Anexo', 'fkKml_id',
                     nullable=True,
                     existing_type=sa.ForeignKey('barcarena_sustentavel.KML.id'))
     op.alter_column('Anexo', 'fkIndicador_id',
