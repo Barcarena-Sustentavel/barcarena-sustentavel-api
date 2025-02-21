@@ -4,7 +4,7 @@ from app.domain.schemas import dimesao_schema, indicador_schema, referencia_sche
 
 class DimensaoData(BaseModel):  # Response Model
     dimensao: dimesao_schema.DimensaoSchema
-    indicadores: List[indicador_schema.IndicadorSchema]
+    indicadores: List[str]
     referencias: List[referencia_schema.ReferenciaSchema]
 
     class Config:

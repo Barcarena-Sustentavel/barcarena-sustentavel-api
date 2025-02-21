@@ -37,7 +37,7 @@ async def get_dimensao(dimensaoNome: dimesao_schema.DimensaoParameters, session:
         dimensao_data_json = dimesao_schema.DimensaoSchema(id=0, nome="Nome Dimensão", descricao="Descrição Dimensão")
     #print(dimensao_data_json)
     for a in indicadoresall:
-        indicadoresDimensao.append(indicador_schema.IndicadorSchema(id=a.id, fkDimensao=a.fkDimensao_id, nome=a.nome))
+        indicadoresDimensao.append(a.nome)
     for b in refrenciasall:
         referenciasIndicador.append(referencia_schema.ReferenciaSchema(id=b.id, nome=b.nome, fkDimensao=b.fkDimensao_id, link=b.link))
     

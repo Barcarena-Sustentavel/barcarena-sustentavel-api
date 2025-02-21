@@ -1,5 +1,5 @@
-from app.domain.schemas.response_schemas.get_indicador_response import IndicadorData
-from app.domain.schemas import dimesao_schema, anexo_schema,indicador_schema
+from app.domain.schemas.response_schemas.get_indicador_response import IndicadorData, AnexoIndicadorSchema
+from app.domain.schemas import anexo_schema,indicador_schema
 from app.domain.models import dimensao , indicador, anexo,indicador
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -7,28 +7,36 @@ from fastapi import APIRouter,Depends, HTTPException
 from .aux.get_model_id import get_model_id
 from app.core.database import get_db
 from http import HTTPStatus
+from .anexo_controller import get_anexo_indicador
+from minio import Minio
 
 indicadorRouter = APIRouter()
-
 @indicadorRouter.get("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
 async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK): 
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     indicadorDimensao = session.scalar(select(indicador.Indicador).where(
         indicador.Indicador.nome == indicadorNome and indicador.Indicador.fkDimensao_id == dimensao_id
     ))
-    anexoIndicador = session.scalar(select(anexo.Anexo).where(
+    anexoIndicador = session.scalars(select(anexo.Anexo).where(
         anexo.Anexo.fkIndicador_id == await get_model_id(indicadorNome, session, indicador.Indicador)
     ))
 
     indicadorDimensaoJson = indicador_schema.IndicadorSchema(id=indicadorDimensao.id, nome=indicadorDimensao.nome, fkDimensao=indicadorDimensao.fkDimensao_id)
-    anexoIndicadorJson = anexo_schema.AnexoSchema(id=anexoIndicador.id,
+    anexoIndicadorJson:list = []
+    for anexos in anexoIndicador.all():
+        anexoIndicadorJson.append(anexo_schema.AnexoSchema(id=anexos.id,
                                                 fkDimensao=dimensao_id,
-                                                fkIndicador=anexoIndicador.fkIndicador_id, 
-                                                fkKml=anexoIndicador.fkKml_id,
-                                                fkContribuicao=anexoIndicador.fkContribuicao_id,
-                                                path=anexoIndicador.path,
-                                                tipoGrafico=anexoIndicador.tipoGrafico,
-                                                descricaoGrafico=anexoIndicador.descricaoGrafico)
+                                                fkIndicador=anexos.fkIndicador_id, 
+                                                fkKml=anexos.fkKml_id,
+                                                fkContribuicao=anexos.fkContribuicao_id,
+                                                path=anexos.path,
+                                                tipoGrafico=anexos.tipoGrafico,
+                                                descricaoGrafico=anexos.descricaoGrafico))
+    
+         
+        
+        
+        
 
     return {"indicador":indicadorDimensaoJson, "anexo":anexoIndicadorJson}
 
@@ -51,7 +59,7 @@ async def create_indicador(
                                     fkContribuicao_id=dadosAnexo.fkContribuicao,
                                     path=dadosAnexo.path,
                                     descricaoGrafico=dadosAnexo.descricaoGrafico,
-                                    tipoGrafico=dadosAnexo.tipoGrafico
+                                    tipoGrafico=dadosAnexo.tipoGrafico,
                                     )
     session.add(new_anexo_indicador)
     session.commit()
@@ -59,8 +67,9 @@ async def create_indicador(
 
     indicador_response = await get_indicador(dimensaoNome, indicadorNome, session)
     anexo_response = await get_anexo_indicador(dimensaoNome, indicadorNome, session)
-    response = {"indicador":dadosIndicador, "anexo":dadosAnexo}
-    return {"indicador":dadosIndicador, "anexo":[dadosAnexo]}
+    response = IndicadorData(indicadores=indicador_response["indicador"], arquivos=anexo_response)
+    return response
+   
 
 @indicadorRouter.patch("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
 async def update_indicador(
