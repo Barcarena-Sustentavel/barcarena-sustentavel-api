@@ -3,8 +3,6 @@ from enum import Enum
 from typing import Optional
 #Funciona semelhante a uma serialização, utilizado para enviar o JSON
 class IndicadorSchema(BaseModel):
-    id: Optional[int]
-    fkDimensao: Optional[int]
     nome: str
 
     class Config:
@@ -21,3 +19,16 @@ class IndicadorParameters(str, Enum):
     idh = "IDH"
     qualidade_ar= "Qualidade do Ar"
     pib = "PIB"
+
+class CreateIndicadorSchema(IndicadorSchema):
+    arquivo: str
+    descricaoGrafico: Optional[str]
+    tituloGrafico: str
+    tipoGrafico: str
+
+class UpdateIndicadorSchema(BaseModel):
+    nome: Optional[str]
+    path: Optional[str]
+    descricaoGrafico: Optional[str]
+    tituloGrafico: Optional[str]
+    tipoGrafico: Optional[str]

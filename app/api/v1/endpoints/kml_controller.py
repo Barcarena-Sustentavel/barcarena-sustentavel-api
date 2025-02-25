@@ -29,27 +29,49 @@ async def get_kml(dimensaoNome: str, session: Session = Depends(get_db),status_c
 ]
     return {"kmls":kmls_list}
 
-@kmlRouter.post("/dimensoes/kml/{dimensaoNome}/",status_code=HTTPStatus.OK)
-async def create_kml(dimensaoNome: str, new_kml_schema: kml_schema.KMLSchema, anexo_kml:anexo_schema.AnexoSchema ,session: Session = Depends(get_db), status_code=HTTPStatus.CREATED):
+@kmlRouter.post("/admin/dimensoes/{dimensaoNome}/kml/",status_code=HTTPStatus.CREATED, response_model=kml_schema.CreateKMLSchema)
+async def admin_post_kml(dimensaoNome: str, kmlNome: str, kmlNovo: kml_schema.CreateKMLSchema ,session: Session = Depends(get_db)):
     client = Minio("play.min.io", "65qcgp01DIdqwPuREGVQ", "czMm6mjFFrO01EjacagUEXozPXklDxA9njvMjixk")
-    client.put_object("anexos-barcarena", f"{anexo_kml.path}", anexo_kml.path)
+    client.put_object("anexos-barcarena", f"{kmlNovo.arquivo}", kmlNovo.arquivo)
     
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
-    new_kml = kml.KML(nome=new_kml_schema.nome, fkDimensao_id= dimensao_id)
+    new_kml = kml.KML(nome=kmlNovo.nome, fkDimensao_id= dimensao_id)
     session.add(new_kml)
-    session.commit()
-    session.refresh(new_kml)
-    
-    new_anexo = anexo.Anexo(path=anexo_kml.path,fkDimensao_id = dimensao_id,fkKML_id=new_kml.id, fkIndicador_id=None, fkContribuicao_id=None)
+
+    new_anexo = anexo.Anexo(path=kmlNovo.arquivo,fkDimensao_id = dimensao_id,fkKML_id=new_kml.id, fkIndicador_id=None, fkContribuicao_id=None, tipoGrafico=None, descricaoGrafico=None)
     session.add(new_anexo)
     session.commit()
     session.refresh(new_anexo)
     
-    return {
-        "kml": kml_schema.KMLSchema(id=new_kml.id, nome=new_kml.name, fkDimensao=new_kml.fkDimensao_id),
-        "anexo": anexo_schema.AnexoSchema(id=new_anexo.id, path=new_anexo.path, fkIndicador=new_anexo.fkIndicador_id, fkDimensao=new_anexo.fkDimensao_id, fkKml=new_anexo.fkKML_id, fkContribuicao=new_anexo.fkContribuicao_id)
-    }
+    response_kml = kml_schema.CreateKMLSchema(nome=kmlNovo.nome, arquivo=kmlNovo.arquivo)
 
+    return response_kml
+
+
+@kmlRouter.patch("/admin/dimensoes/{dimensaoNome}/kml/{kmlNome}/",status_code=HTTPStatus.CREATED, response_model=kml_schema.CreateKMLSchema)
+async def admin_patch_kml(dimensaoNome: str, kmlNome: str, kmlNovo: kml_schema.CreateKMLSchema ,session: Session = Depends(get_db)):
+    client = Minio("play.min.io", "65qcgp01DIdqwPuREGVQ", "czMm6mjFFrO01EjacagUEXozPXklDxA9njvMjixk")
+    
+    kml_update = session.scalar(select(kml.KML).where(kml.KML.name == kmlNome))
+    anexo_update = session.scalar(select(anexo.Anexo).where(anexo.Anexo.fkKml_id == kml_update.id))
+
+    if kml_update == None or anexo_update == None:
+        raise HTTPException(status_code=404, detail="KML não encontrado")
+
+    kml_update.name = kmlNovo.nome if kml_update.name != kmlNovo.nome else kml_update.name
+
+    if anexo_update.path != kmlNovo.arquivo:
+        client.remove_object("anexos-barcarena", anexo_update.path)
+        anexo_update.path = kmlNovo.arquivo
+        client.put_object("anexos-barcarena", f"{kmlNovo.arquivo}", kmlNovo.arquivo)
+    
+    session.commit()
+    session.refresh(kml_update)
+    session.refresh(anexo_update)
+    
+    response_kml = kml_schema.CreateKMLSchema(nome=kmlNovo.nome, arquivo=kmlNovo.arquivo)
+
+    return response_kml
 
 
 @kmlRouter.get("/dimensoes/kmlCoords/{kmlNome}/")
@@ -72,12 +94,12 @@ async def get_kml_coords(kmlNome: str, session: Session = Depends(get_db), statu
     
     return {"coordenadas":anexo.read()}
 
-@kmlRouter.delete("/dimensoes/kmlCoords/{kmlNome}/")
-async def delete_kml_coords(kmlNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
+@kmlRouter.delete("/admin/dimensoes/{dimensaoNome}/kml/{kmlNome}/",status_code=HTTPStatus.NO_CONTENT)
+async def admin_delete_kml(kmlNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
     kml_id = await get_model_id(kmlNome, session, kml.KML)
     
     anexo_kml = session.scalars(select(anexo.Anexo).where(
-        anexo.Anexo.fkKML_id == kml_id
+        anexo.Anexo.fkKml_id == kml_id
     ))
     kml_delete = session.scalars(select(kml.KML).where(
         kml.KML.id == kml_id
@@ -86,4 +108,5 @@ async def delete_kml_coords(kmlNome: str, session: Session = Depends(get_db), st
     session.delete(anexo_kml)
     session.delete(kml_delete)
     session.commit()
+    return
     

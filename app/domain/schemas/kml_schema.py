@@ -19,3 +19,8 @@ class KMLParameters(str, Enum):
     mapa_social = "Mapa Social"
     mapa_econômica = "Mapa Econômica"
     mapa_ambiental = "Mapa Ambiental"
+
+
+class CreateKMLSchema(BaseModel):
+    nome: str
+    arquivo: str

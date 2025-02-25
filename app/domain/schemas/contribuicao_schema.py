@@ -3,12 +3,11 @@ from enum import Enum
 from typing import Optional
 
 class ContribuicaoSchema(BaseModel):
-    id: int
-    nome: str = None
-    email: str = None
-    telefone: str = None
-    comentario: str
-    fkDimensao_id: int 
+    nome: str 
+    email: Optional[str] 
+    telefone: Optional[str] 
+    comentario: Optional[str]
+    path: Optional[str]
 
     class Config:
         from_atributes = True

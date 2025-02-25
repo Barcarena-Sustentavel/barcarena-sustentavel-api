@@ -43,7 +43,7 @@ async def get_dimensao(dimensaoNome: dimesao_schema.DimensaoParameters, session:
     
     return {"dimensao":dimensao_data_json, "indicadores":indicadoresDimensao, "referencias":referenciasIndicador}
 
-@dimensaoRouter .patch("/dimensoes/{dimensaoNome}/", response_model=DimensaoData)
+@dimensaoRouter.patch("/dimensoes/{dimensaoNome}/", response_model=DimensaoData)
 async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.DimensaoSchema,session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     dimensao_data = session.scalar(select(dimensao.Dimensao).where(
         dimensao.Dimensao.nome == dimensaoNome
@@ -63,10 +63,18 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
 
 #Retorna todos os nomes dos kmls e contribuições de uma dimensão
 #Criado somente para ser utilizado na parte de administrador
-@dimensaoRouter .get("/dimensoesAdmin/{dimensaoNome}/")
+@dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/")
 async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     get_dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     
+    referencias_dimensao = session.scalars(select(referencias.Referencias).where(
+        referencias.Referencias.fkDimensao_id == get_dimensao_id
+    ))
+
+    indicadores_dimensao = session.scalars(select(indicador.Indicador).where(
+        indicador.Indicador.fkDimensao_id == get_dimensao_id
+    ))
+
     kml_dimensao = session.scalars(select(kml.KML).where(
         kml.KML.fkDimensao_id == get_dimensao_id
     ))
@@ -77,15 +85,17 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     
     kml_nomes = []
     contribuicao_nomes = []
-    
-    for a in kml_dimensao:
-        kml_nomes.append(a.name)
+    referencias_nomes = []
+    indicadores_nomes = []
+
+    for(refN, ind, kmlN, cont) in zip(referencias_dimensao, indicadores_dimensao, kml_dimensao, contribuicao_dimensao):
+        checkForNone(refN.nome, referencias_nomes)
+        checkForNone(ind.nome, indicadores_nomes)
+        checkForNone(kmlN.name, kml_nomes)
+        checkForNone(cont.nome, contribuicao_nomes)
         
-    for b in contribuicao_dimensao:
-        contribuicao_nomes.append(b.nome)
+    return {"referencias": referencias_nomes, "indicadores": indicadores_nomes, "kmls": kml_nomes, "contribuicao": contribuicao_nomes}
         
-    return {"kmls":kml_nomes, "contribuicoes":contribuicao_nomes}
-        
-    
-    
+def checkForNone(nome:str | None, lista:list):
+    if nome != None: lista.append(nome)
     

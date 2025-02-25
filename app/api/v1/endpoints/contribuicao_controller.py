@@ -6,31 +6,47 @@ from sqlalchemy import select
 from app.core.database import get_db
 from http import HTTPStatus
 from .aux.get_model_id import get_model_id
+from typing import List
 
 contribuicaoRouter = APIRouter()
 
-@contribuicaoRouter.post("/contribuicao/")
-async def post_contribuicao(contribuicao: contribuicao_schema.ContribuicaoSchema, status_code=HTTPStatus.CREATED):
-    return contribuicao
+@contribuicaoRouter.post("/dimensoes/contribuicao/{dimensaoNome}/", response_model=contribuicao_schema.ContribuicaoSchema)
+async def post_contribuicao(dimensaoNome:str,contribuicaoNova: contribuicao_schema.ContribuicaoSchema, session: Session = Depends(get_db) ,status_code=HTTPStatus.CREATED):
+    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    contribuicao_post = contribuicao.Contribuicao(nome=contribuicaoNova.nome, 
+                                                comentario = contribuicaoNova.comentario,
+                                                email=contribuicaoNova.email,
+                                                telefone=contribuicaoNova.telefone,
+                                                fkDimensao_id=dimensao_id,
+                                                path = contribuicaoNova.path)
+    session.add(contribuicao_post)
+    session.commit()
+    session.refresh(contribuicao_post)
 
-@contribuicaoRouter.get("/contribuicao/{dimensaoNome}/")
-async def get_contribuicao(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK):
+    response_contribuicao = contribuicao_schema.ContribuicaoSchema(nome=contribuicao_post.nome,comentario=contribuicao_post.comentario,email=contribuicao_post.email,telefone=contribuicao_post.telefone)
+
+    return response_contribuicao    
+
+@contribuicaoRouter.get("/admin/dimensoes/{dimensaoNome}/contribuicao/", response_model=List[contribuicao_schema.ContribuicaoSchema])
+async def admin_get_contribuicao(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK,):
     contribuicaoSession = session.scalars(select(contribuicao.Contribuicao).where(
         contribuicao.Contribuicao.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     ))
     contribuicao_list = []
     for c in contribuicaoSession.all():
         contribuicao_list.append(contribuicao_schema.ContribuicaoSchema(id=c.id,
-                                                                        nome= c.nome if c.nome != None else None, 
-                                                                        fkDimensao= c.fkDimensao_id if c.fkDimensao_id != None else None,
-                                                                        email = c.email if c.email != None else None,
-                                                                        comentario = c.comentario))
-    return {"contribuicoes": contribuicao_list}
+                                                                        nome= c.nome ,
+                                                                        email = c.email,
+                                                                        comentario = c.comentario,
+                                                                        path = c.path))
+    return contribuicao_list
 
-@contribuicaoRouter.delete("/contribuicao/{contribuicaoId}/")
-async def delete_contribuicao(contribuicaoId: int, session: Session = Depends(get_db),status_code=HTTPStatus.OK):
+@contribuicaoRouter.delete("/admin/dimensoes/{dimensaoNome}/contribuicao/{comentarioPublicao}/")
+async def delete_contribuicao(dimensaoNome:str, comentarioPublicacao: str,session: Session = Depends(get_db),status_code=HTTPStatus.OK):
     contribuicaoSession = session.scalars(select(contribuicao.Contribuicao).where(
-        contribuicao.Contribuicao.id == contribuicaoId
+        contribuicao.Contribuicao.comentario == comentarioPublicacao
     ))
     session.delete(contribuicaoSession)
     session.commit()
+
+    return

@@ -11,6 +11,7 @@ class Contribuicao(Base):
     email = Column(String, nullable=True)
     telefone = Column(String, nullable=True)
     comentario = Column(String, nullable=False)
+    path = Column(String, nullable=True)
     fkDimensao_id = Column(Integer, ForeignKey("barcarena_sustentavel.Dimensao.id"), nullable=False)
 
     dimensao = relationship("Dimensao", back_populates="contribuicoes")

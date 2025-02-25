@@ -40,88 +40,71 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
 
     return {"indicador":indicadorDimensaoJson, "anexo":anexoIndicadorJson}
 
-@indicadorRouter.post("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
-async def create_indicador(
+@indicadorRouter.post("/dimensoes/{dimensaoNome}/indicador/", response_model=indicador_schema.CreateIndicadorSchema)
+async def admin_post_indicador(
     dimensaoNome: str,
     indicadorNome: str,
-    dadosIndicador: indicador_schema.IndicadorSchema,
-    dadosAnexo: anexo_schema.AnexoSchema,
+    dadosIndicador: indicador_schema.CreateIndicadorSchema,
     session: Session = Depends(get_db)):
 
-    #print(dadosIndicador)
+    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     new_indicador = indicador.Indicador(nome=dadosIndicador.nome, fkDimensao_id=await get_model_id(dimensaoNome, session, dimensao.Dimensao))    
     session.add(new_indicador)
     session.commit()
     session.refresh(new_indicador)
     
-    new_anexo_indicador = anexo.Anexo(fkIndicador_id=await get_model_id(indicadorNome, session, indicador.Indicador), 
-                                    fkKml_id=dadosAnexo.fkKml, 
-                                    fkContribuicao_id=dadosAnexo.fkContribuicao,
-                                    path=dadosAnexo.path,
-                                    descricaoGrafico=dadosAnexo.descricaoGrafico,
-                                    tipoGrafico=dadosAnexo.tipoGrafico,
+    new_anexo_indicador = anexo.Anexo(fkIndicador_id= new_indicador.id, 
+                                    fkKml_id=None, 
+                                    fkContribuicao_id=None,
+                                    fkDimensao_id=dimensao_id,  
+                                    path=dadosIndicador.arquivo,
+                                    descricaoGrafico=dadosIndicador.descricaoGrafico,
+                                    tipoGrafico=dadosIndicador.tituloGrafico,
                                     )
     session.add(new_anexo_indicador)
     session.commit()
     session.refresh(new_anexo_indicador)
 
-    indicador_response = await get_indicador(dimensaoNome, indicadorNome, session)
-    anexo_response = await get_anexo_indicador(dimensaoNome, indicadorNome, session)
-    response = IndicadorData(indicadores=indicador_response["indicador"], arquivos=anexo_response)
-    return response
+    response_indicador = indicador_schema.CreateIndicadorSchema(nome=new_indicador.nome, arquivo=new_anexo_indicador.path, tituloGrafico=new_anexo_indicador.tipoGrafico, descricaoGrafico=new_anexo_indicador.descricaoGrafico)
+    return response_indicador
    
 
-@indicadorRouter.patch("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
-async def update_indicador(
-    dimensaoNome: str,
+@indicadorRouter.patch("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", response_model=indicador_schema.UpdateIndicadorSchema)
+async def admin_patch_indicador(
+   dimensaoNome: str,
     indicadorNome: str,
-    indicador_update_data: indicador_schema.IndicadorSchema,#
-    anexo_update_data: anexo_schema.AnexoSchema,
+    dadosIndicador: indicador_schema.UpdateIndicadorSchema,
     session: Session = Depends(get_db)):
-        #Acha o indicador existente baseado no nome e no id da dimensão
-        indicadorDimensao = session.scalar(select(indicador.Indicador).where(
-            indicador.Indicador.nome == indicadorNome,
-            indicador.Indicador.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
-        ))
-        
-        #Se indicador não achado, retorna erro
-        if not indicadorDimensao:
-            raise HTTPException(status_code=404, detail="Indicator not found")
 
-        #itera sobre os atributos do atributo do indicador e atualiza o seu valor para o 
-        #que foi achado no banco de dados
-        for field, value in indicador_update_data.model_dump(exclude_unset=True).items():
-            setattr(indicadorDimensao, field, value)
+    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    indicador_update = session.scalar(select(indicador.Indicador).where(
+        indicador.Indicador.nome == indicadorNome and indicador.Indicador.fkDimensao_id == dimensao_id
+    ))
 
-        
-        anexoIndicador = session.scalar(select(anexo.Anexo).where(
-            anexo.Anexo.fkIndicador_id == indicadorDimensao.id
-        ))
+    if indicador_update == None : raise HTTPException(status_code=404, detail="Indicador não encontrado")
 
-        if anexoIndicador != None:
-            for field, value in anexo_update_data.model_dump(exclude_unset=True).items():
-                setattr(anexoIndicador, field, value)
+    anexo_update = session.scalar(select(anexo.Anexo).where(
+        anexo.Anexo.fkIndicador_id == indicador_update.id
+    ))
 
-        session.commit()
+    if anexo_update == None : raise HTTPException(status_code=404, detail="Anexo não encontrado")
 
-        # Prepare response
-        indicadorDimensaoJson = indicador_schema.IndicadorSchema(
-            id=indicadorDimensao.id,
-            nome=indicadorDimensao.nome,
-            fkDimensao=indicadorDimensao.fkDimensao_id
-        )
-        
-        anexoIndicadorJson = anexo_schema.AnexoSchema(
-            id=anexoIndicador.id,
-            fkIndicador=anexoIndicador.fkIndicador_id,
-            fkKml=anexoIndicador.fkKml_id,
-            path=anexoIndicador.path
-        )
+    if  indicador_update.nome != dadosIndicador.nome:indicador_update.nome = dadosIndicador.nome
 
-        return {"indicador": indicadorDimensaoJson, "anexo": anexoIndicadorJson}
+    for chave, valor in dadosIndicador.model_dump(exclude_unset=True).items():
+        if anexo_update[chave] != None:
+            if anexo_update[chave] != dadosIndicador[chave]: anexo_update[chave] = dadosIndicador[chave]
 
-@indicadorRouter.delete("/dimensoes/{dimensaoNome}/{indicadorNome}/", status_code=HTTPStatus.NO_CONTENT)
-async def delete_indicador(
+    session.commit()
+    session.refresh(indicador_update)
+    session.refresh(anexo_update)
+
+    response_indicador = indicador_schema.UpdateIndicadorSchema(nome=indicador_update.nome, arquivo=anexo_update.path, tituloGrafico=anexo_update.tipoGrafico, descricaoGrafico=anexo_update.descricaoGrafico)
+
+    return response_indicador
+
+@indicadorRouter.delete("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", status_code=HTTPStatus.NO_CONTENT)
+async def admin_delete_indicador(
     dimensaoNome: str,
     indicadorNome: str,
     session: Session = Depends(get_db)
@@ -143,3 +126,5 @@ async def delete_indicador(
     
     session.delete(db_indicador)
     session.commit()
+
+    return
