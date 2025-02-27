@@ -3,10 +3,10 @@ from enum import Enum
 from typing import Optional
 
 class ContribuicaoSchema(BaseModel):
-    nome: str 
+    nome: Optional[str] 
     email: Optional[str] 
     telefone: Optional[str] 
-    comentario: Optional[str]
+    comentario: str
     path: Optional[str]
 
     class Config:

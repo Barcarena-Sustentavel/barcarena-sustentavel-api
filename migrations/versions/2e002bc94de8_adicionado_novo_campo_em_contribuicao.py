@@ -19,8 +19,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    pass
-
+    op.add_column('Contribuicao', 
+        sa.Column('path', sa.String(), nullable=True),
+        schema='barcarena_sustentavel'
+    )
 
 def downgrade() -> None:
-    pass
+    op.drop_column('Contribuicao', 'path', schema='barcarena_sustentavel'
+    )
+    #pass

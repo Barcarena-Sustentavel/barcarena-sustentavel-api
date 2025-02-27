@@ -79,7 +79,7 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
         kml.KML.fkDimensao_id == get_dimensao_id
     ))
     
-    contribuicao_dimensao = session.scalars(select(dimensao.Dimensao).where(
+    contribuicao_dimensao = session.scalars(select(contribuicao.Contribuicao).where(
        contribuicao.Contribuicao.fkDimensao_id == get_dimensao_id
     ))
     
@@ -88,7 +88,7 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     referencias_nomes = []
     indicadores_nomes = []
 
-    for(refN, ind, kmlN, cont) in zip(referencias_dimensao, indicadores_dimensao, kml_dimensao, contribuicao_dimensao):
+    for(refN, ind, kmlN, cont) in zip(referencias_dimensao.all(), indicadores_dimensao.all(), kml_dimensao.all(), contribuicao_dimensao.all()):
         checkForNone(refN.nome, referencias_nomes)
         checkForNone(ind.nome, indicadores_nomes)
         checkForNone(kmlN.name, kml_nomes)
@@ -97,5 +97,6 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     return {"referencias": referencias_nomes, "indicadores": indicadores_nomes, "kmls": kml_nomes, "contribuicao": contribuicao_nomes}
         
 def checkForNone(nome:str | None, lista:list):
+    print(nome)
     if nome != None: lista.append(nome)
     

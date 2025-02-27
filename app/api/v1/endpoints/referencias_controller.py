@@ -11,7 +11,7 @@ from .aux.get_model_id import get_model_id
 
 referenciasRouter = APIRouter()
 
-@referenciasRouter.post("/admin/dimensoes/{dimensaoNome}/referencias/", response_model=referencia_schema,status_code=HTTPStatus.CREATED)
+@referenciasRouter.post("/admin/dimensoes/{dimensaoNome}/referencias/", response_model=referencia_schema.ReferenciaSchema,status_code=HTTPStatus.CREATED)
 async def post_admin_referencia(dimensaoNome: str, referenciaNome: str, referenciaNova: referencia_schema.ReferenciaSchema, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
 
