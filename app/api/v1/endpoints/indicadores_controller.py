@@ -9,6 +9,7 @@ from app.core.database import get_db
 from http import HTTPStatus
 from .anexo_controller import get_anexo_indicador
 from minio import Minio
+import io
 
 indicadorRouter = APIRouter()
 @indicadorRouter.get("/dimensoes/{dimensaoNome}/{indicadorNome}/", response_model=IndicadorData)
@@ -33,19 +34,16 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
                                                 tipoGrafico=anexos.tipoGrafico,
                                                 descricaoGrafico=anexos.descricaoGrafico))
     
-         
-        
-        
-        
-
     return {"indicador":indicadorDimensaoJson, "anexo":anexoIndicadorJson}
 
-@indicadorRouter.post("/dimensoes/{dimensaoNome}/indicador/", response_model=indicador_schema.CreateIndicadorSchema)
+@indicadorRouter.post("/admin/dimensoes/{dimensaoNome}/indicador/")
 async def admin_post_indicador(
     dimensaoNome: str,
-    indicadorNome: str,
     dadosIndicador: indicador_schema.CreateIndicadorSchema,
     session: Session = Depends(get_db)):
+    client = Minio("localhost:9000/")
+
+    #print(dadosIndicador)
 
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     new_indicador = indicador.Indicador(nome=dadosIndicador.nome, fkDimensao_id=await get_model_id(dimensaoNome, session, dimensao.Dimensao))    
@@ -53,20 +51,39 @@ async def admin_post_indicador(
     session.commit()
     session.refresh(new_indicador)
     
-    new_anexo_indicador = anexo.Anexo(fkIndicador_id= new_indicador.id, 
+    for grafico in dadosIndicador.graficos:
+        new_anexo_indicador = anexo.Anexo(fkIndicador_id= new_indicador.id, 
                                     fkKml_id=None, 
                                     fkContribuicao_id=None,
                                     fkDimensao_id=dimensao_id,  
-                                    path=dadosIndicador.arquivo,
-                                    descricaoGrafico=dadosIndicador.descricaoGrafico,
-                                    tipoGrafico=dadosIndicador.tituloGrafico,
+                                    path=grafico.arquivo,
+                                    descricaoGrafico=grafico.descricaoGrafico,
+                                    tipoGrafico=grafico.tituloGrafico,
                                     )
-    session.add(new_anexo_indicador)
-    session.commit()
-    session.refresh(new_anexo_indicador)
-
-    response_indicador = indicador_schema.CreateIndicadorSchema(nome=new_indicador.nome, arquivo=new_anexo_indicador.path, tituloGrafico=new_anexo_indicador.tipoGrafico, descricaoGrafico=new_anexo_indicador.descricaoGrafico)
-    return response_indicador
+        session.add(new_anexo_indicador)
+        session.commit()
+        session.refresh(new_anexo_indicador)
+        result = client.put_object(
+    "anexos-barcarena", f"{new_anexo_indicador.path}")
+        
+        
+    
+    
+    #new_anexo_indicador = anexo.Anexo(fkIndicador_id= new_indicador.id, 
+    #                                fkKml_id=None, 
+    #                                fkContribuicao_id=None,
+    #                                fkDimensao_id=dimensao_id,  
+    #                                path=dadosIndicador.arquivo,
+    #                                descricaoGrafico=dadosIndicador.descricaoGrafico,
+    #                                tipoGrafico=dadosIndicador.tituloGrafico,
+    #                                )
+    #session.add(new_anexo_indicador)
+    #session.commit()
+    #session.refresh(new_anexo_indicador)
+    #
+    #result = client.put_object(
+    #"anexos-barcarena", f"{new_anexo_indicador.path}")
+    return
    
 
 @indicadorRouter.patch("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", response_model=indicador_schema.UpdateIndicadorSchema)
