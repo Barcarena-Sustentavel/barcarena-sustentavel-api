@@ -21,14 +21,16 @@ class IndicadorParameters(str, Enum):
     qualidade_ar= "Qualidade do Ar"
     pib = "PIB"
 
-class CreateIndicadorGrafico(BaseModel):
-    arquivo: UploadFile = File(...)
+    
+class DadosGrafico(BaseModel):
+    tipoGrafico: Optional[str]
+    tituloGrafico: Optional[str]
     descricaoGrafico: Optional[str]
-    tituloGrafico: str
-    tipoGrafico: str
+    dados: List[List[int | float]]
+    categoria: List[int | float | str]
 
-class CreateIndicadorSchema(IndicadorSchema):
-    graficos: List[CreateIndicadorGrafico]
+class IndicadorGraficos(IndicadorSchema):
+    graficos: List[DadosGrafico]
 
 class UpdateIndicadorSchema(BaseModel):
     nome: Optional[str]

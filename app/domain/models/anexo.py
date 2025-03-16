@@ -9,6 +9,7 @@ class Anexo(Base):
     id = Column(Integer, primary_key=True)
     path = Column(String, nullable=False)
     tipoGrafico = Column(String, nullable=True)
+    tituloGrafico = Column(String, nullable=True)
     descricaoGrafico = Column(String, nullable=True)
     fkDimensao_id = Column(Integer, ForeignKey("barcarena_sustentavel.Dimensao.id"), nullable=False)
     fkKml_id = Column(Integer, ForeignKey("barcarena_sustentavel.KML.id"), nullable=True)

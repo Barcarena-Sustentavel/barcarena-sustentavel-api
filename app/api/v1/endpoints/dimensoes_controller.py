@@ -14,8 +14,8 @@ dimensaoRouter = APIRouter()
 #Retorna todos os indicadores de uma dimensão
 #dimensaoNome: nome da dimensão
 #session: sessão do banco de dados
-@dimensaoRouter.get("/dimensoes/{dimensaoNome}/", response_model=DimensaoData)
-async def get_dimensao(dimensaoNome: dimesao_schema.DimensaoParameters, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
+@dimensaoRouter.get("/dimensoes/{dimensaoNome}/")
+async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) -> Any:
     dimensao_data = session.scalar(select(dimensao.Dimensao).where(
         dimensao.Dimensao.nome == dimensaoNome
     ))
@@ -31,11 +31,7 @@ async def get_dimensao(dimensaoNome: dimesao_schema.DimensaoParameters, session:
     indicadoresall = indicadores.all()
     refrenciasall = refrencias.all()
 
-    try:
-        dimensao_data_json = dimesao_schema.DimensaoSchema(id=dimensao_data.id, nome=dimensao_data.nome, descricao=dimensao_data.descricao)
-    except AttributeError:
-        dimensao_data_json = dimesao_schema.DimensaoSchema(id=0, nome="Nome Dimensão", descricao="Descrição Dimensão")
-    #print(dimensao_data_json)
+    dimensao_data_json = dimesao_schema.DimensaoSchema(id=dimensao_data.id, nome=dimensao_data.nome, descricao=dimensao_data.descricao)
     for a in indicadoresall:
         indicadoresDimensao.append(a.nome)
     for b in refrenciasall:
@@ -43,7 +39,7 @@ async def get_dimensao(dimensaoNome: dimesao_schema.DimensaoParameters, session:
     
     return {"dimensao":dimensao_data_json, "indicadores":indicadoresDimensao, "referencias":referenciasIndicador}
 
-@dimensaoRouter.patch("/dimensoes/{dimensaoNome}/", response_model=DimensaoData)
+@dimensaoRouter.patch("/dimensoes/{dimensaoNome}/", status_code=HTTPStatus.OK)
 async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.DimensaoSchema,session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     dimensao_data = session.scalar(select(dimensao.Dimensao).where(
         dimensao.Dimensao.nome == dimensaoNome
@@ -67,6 +63,10 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
 async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     get_dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     
+    dados_dimensao = session.scalar(select(dimensao.Dimensao).where(
+        dimensao.Dimensao.nome == dimensaoNome
+    ))
+    
     referencias_dimensao = session.scalars(select(referencias.Referencias).where(
         referencias.Referencias.fkDimensao_id == get_dimensao_id
     ))
@@ -83,6 +83,8 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
        contribuicao.Contribuicao.fkDimensao_id == get_dimensao_id
     ))
     
+    
+    dados_dimensao_json = dimesao_schema.DimensaoSchema(nome=dados_dimensao.nome, descricao=dados_dimensao.descricao)
     kml_nomes = []
     contribuicao_nomes = []
     referencias_nomes = []
@@ -94,7 +96,7 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
         checkForNone(kmlN.name, kml_nomes)
         checkForNone(cont.nome, contribuicao_nomes)
         
-    return {"referencias": referencias_nomes, "indicadores": indicadores_nomes, "kmls": kml_nomes, "contribuicao": contribuicao_nomes}
+    return {"dimensao":dados_dimensao_json,"referencias": referencias_nomes, "indicadores": indicadores_nomes, "kmls": kml_nomes, "contribuicoes": contribuicao_nomes}
         
 def checkForNone(nome:str | None, lista:list):
     print(nome)

@@ -4,3 +4,4 @@ psycopg2-binary
 fastapi[standard]
 uvicorn[standard]
 minio
+pandas
