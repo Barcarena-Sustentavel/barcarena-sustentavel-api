@@ -8,8 +8,11 @@ COPY pyproject.toml poetry.lock /app/
 # Instalar o Poetry
 RUN pip install --no-cache-dir poetry
 
+# Verificar a versão do Poetry
+RUN poetry --version
+
 # Configurar o Poetry e instalar as dependências
-RUN poetry config virtualenvs.create false && poetry install --no-dev --no-interaction --no-ansi --no-root
+RUN poetry config virtualenvs.create false && poetry install --without dev --no-interaction --no-ansi --no-root
 
 # Copiar o restante do código da aplicação
 COPY . /app
