@@ -2,7 +2,7 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Copiar apenas os arquivos de dependências para usar o cache do Docker
+# Copiar os arquivos de dependências
 COPY pyproject.toml poetry.lock /app/
 
 # Instalar o Poetry
