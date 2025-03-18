@@ -1,50 +1,104 @@
-# from fastapi import APIRouter
-#
-# from app.domain.models import dimensao, referencias, kml, indicador, anexo
-#
-# dimensoes = APIRouter()
-#
-# @dimensoes.get("/dimensoes/{dimensaoNome}/", response_model= dimensao.Dimensao)
-# async def get_dimensao(dimensaoNome: str):
-#     return {dimensao.Dimensao(nome=dimensao),referencias.Referencias(fkDimensao_id=dimensaoNome)}
-#
-# @dimensoes.get("/dimensoes/kml/{dimensaoNome}/", response_model= kml.KML)
-# async def get_kml(dimensaoNome: str):
-#     return {kml.KML(fkDimensao_id=dimensao.Dimensao(nome=dimensaoNome))}
-#
-# @dimensoes.get("/dimensoes/kmlCoords/{kmlNome}/", response_model= kml.KML)
-# async def get_kml_coords(kmlNome: str):
-#     return {kml.KML(fkDimensao_id=dimensao.Dimensao(nome=kmlNome))}
-#
-# @dimensoes.get("/dimensoes/{dimensao}/{indicador}/", response_model= indicador.Indicador)
-# async def get_indicador(dimensaoNome: str, indicadorNome: str):
-#     return {indicador.Indicador(nome=indicadorNome), anexo.Anexo(fkIndicador_id=indicadorNome, fkDimensao_id=dimensaoNome)}
-#
-# # @dimensoes.post("contribuicao/", response_model= contribuicao.DimensaoContribuicao)
-# # async def post_contribuicao(contribuicao: contribuicao.DimensaoContribuicao):
-# #     return contribuicao
+from fastapi import APIRouter,Depends, HTTPException
+from app.domain.schemas import dimesao_schema, indicador_schema, referencia_schema 
+from app.domain.models import dimensao , indicador, indicador,  referencias, kml, contribuicao
+from app.domain.schemas.response_schemas.get_dimensao_response import DimensaoData
+from http import HTTPStatus
+from app.core.database import get_db
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+from typing import Any  
+from .aux.get_model_id import get_model_id
 
+dimensaoRouter = APIRouter()
 
-from fastapi import APIRouter
+#Retorna todos os indicadores de uma dimensão
+#dimensaoNome: nome da dimensão
+#session: sessão do banco de dados
+@dimensaoRouter.get("/dimensoes/{dimensaoNome}/")
+async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) -> Any:
+    dimensao_data = session.scalar(select(dimensao.Dimensao).where(
+        dimensao.Dimensao.nome == dimensaoNome
+    ))
+    indicadores = session.scalars(select(indicador.Indicador).where(
+        indicador.Indicador.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    ))
+    refrencias = session.scalars(select(referencias.Referencias).where(
+        referencias.Referencias.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    ))
 
-dimensoes = APIRouter()
+    indicadoresDimensao = []
+    referenciasIndicador = []
+    indicadoresall = indicadores.all()
+    refrenciasall = refrencias.all()
 
-@dimensoes.get("/dimensoes/{dimensaoNome}/")
-async def get_dimensao(dimensaoNome: str):
+    dimensao_data_json = dimesao_schema.DimensaoSchema(id=dimensao_data.id, nome=dimensao_data.nome, descricao=dimensao_data.descricao)
+    for a in indicadoresall:
+        indicadoresDimensao.append(a.nome)
+    for b in refrenciasall:
+        referenciasIndicador.append(referencia_schema.ReferenciaSchema(id=b.id, nome=b.nome, fkDimensao=b.fkDimensao_id, link=b.link))
+    
+    return {"dimensao":dimensao_data_json, "indicadores":indicadoresDimensao, "referencias":referenciasIndicador}
 
-    return f"Dimensão {dimensaoNome} encontrada!"
+@dimensaoRouter.patch("/dimensoes/{dimensaoNome}/", status_code=HTTPStatus.OK)
+async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.DimensaoSchema,session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
+    dimensao_data = session.scalar(select(dimensao.Dimensao).where(
+        dimensao.Dimensao.nome == dimensaoNome
+    ))
+    
+    if not dimensao_data:
+        raise HTTPException(status_code=404, detail="Dimensão não encontrada")
+    
+    # Update fields
+    for field, value in update_dimensao.model_dump(exclude_unset=True).items():
+        setattr(dimensao_data, field, value)
+    
+    session.commit()
+    
+    # Return updated data in same format as GET
+    return await get_dimensao(dimensaoNome=dimensaoNome, session=session)
 
-@dimensoes.get("/dimensoes/kml/{dimensaoNome}/")
-async def get_kml(dimensaoNome: str):
+#Retorna todos os nomes dos kmls e contribuições de uma dimensão
+#Criado somente para ser utilizado na parte de administrador
+@dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/")
+async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
+    get_dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    
+    dados_dimensao = session.scalar(select(dimensao.Dimensao).where(
+        dimensao.Dimensao.nome == dimensaoNome
+    ))
+    
+    referencias_dimensao = session.scalars(select(referencias.Referencias).where(
+        referencias.Referencias.fkDimensao_id == get_dimensao_id
+    ))
 
-    return f"KML associado à Dimensão {dimensaoNome} encontrado!"
+    indicadores_dimensao = session.scalars(select(indicador.Indicador).where(
+        indicador.Indicador.fkDimensao_id == get_dimensao_id
+    ))
 
-@dimensoes.get("/dimensoes/kmlCoords/{kmlNome}/")
-async def get_kml_coords(kmlNome: str):
+    kml_dimensao = session.scalars(select(kml.KML).where(
+        kml.KML.fkDimensao_id == get_dimensao_id
+    ))
+    
+    contribuicao_dimensao = session.scalars(select(contribuicao.Contribuicao).where(
+       contribuicao.Contribuicao.fkDimensao_id == get_dimensao_id
+    ))
+    
+    
+    dados_dimensao_json = dimesao_schema.DimensaoSchema(nome=dados_dimensao.nome, descricao=dados_dimensao.descricao)
+    kml_nomes = []
+    contribuicao_nomes = []
+    referencias_nomes = []
+    indicadores_nomes = []
 
-    return f"KML com coordenadas para {kmlNome} encontrado!"
-
-@dimensoes.get("/dimensoes/{dimensao}/{indicador}/")
-async def get_indicador(dimensaoNome: str, indicadorNome: str):
-
-    return f"Indicador {indicadorNome} da Dimensão {dimensaoNome} encontrado!"
+    for(refN, ind, kmlN, cont) in zip(referencias_dimensao.all(), indicadores_dimensao.all(), kml_dimensao.all(), contribuicao_dimensao.all()):
+        checkForNone(refN.nome, referencias_nomes)
+        checkForNone(ind.nome, indicadores_nomes)
+        checkForNone(kmlN.name, kml_nomes)
+        checkForNone(cont.nome, contribuicao_nomes)
+        
+    return {"dimensao":dados_dimensao_json,"referencias": referencias_nomes, "indicadores": indicadores_nomes, "kmls": kml_nomes, "contribuicoes": contribuicao_nomes}
+        
+def checkForNone(nome:str | None, lista:list):
+    print(nome)
+    if nome != None: lista.append(nome)
+    
