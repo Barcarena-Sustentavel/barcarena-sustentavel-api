@@ -2,23 +2,20 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Copiar os arquivos de dependências
+# Install system dependencies required for psycopg2 and other libraries
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    gcc \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml poetry.lock /app/
 
-# Instalar o Poetry
 RUN pip install --no-cache-dir poetry
 
-# Verificar a versão do Poetry
-RUN poetry --version
+RUN poetry config virtualenvs.create false && \
+    poetry install --without dev --no-interaction --no-ansi --no-root
 
-# Configurar o Poetry e instalar as dependências
-RUN poetry config virtualenvs.create false && poetry install --without dev --no-interaction --no-ansi --no-root
+COPY . .
 
-# Copiar o restante do código da aplicação
-COPY . /app
-
-# Expor a porta 8000
-EXPOSE 8000
-
-# Comando para rodar o aplicativo
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
