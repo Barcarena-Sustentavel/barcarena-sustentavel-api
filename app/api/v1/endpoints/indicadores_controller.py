@@ -27,7 +27,8 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
     ))
 
     client = Minio(
-        "localhost:9000",
+        #"localhost:9000",
+        "barcarena-minio:9000",
         access_key="minioadmin",
         secret_key="minioadmin",
         secure=False
@@ -51,7 +52,12 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
             for coluna in table_data[colunas_dados]:
                 dados_grafico = []
                 for value in table_data[coluna]:
-                    dados_grafico.append(value)
+                    if type(value) == str:
+                        numero = float(value.replace(',', '.'))  # trata caso venha com vírgula como separador decimal
+                        dados_grafico.append(numero)
+                    else:
+            # valor inválido, pode ser string não numérica – decide se ignora ou adiciona como está
+                        dados_grafico.append(value)
                 dados.append(dados_grafico)
                 dados_grafico = []
                 
@@ -98,9 +104,10 @@ async def admin_post_anexo_indicador(dimensaoNome: str,
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
 
     client = Minio(
-        endpoint="localhost:9000",  # Use the service name from docker-compose
-        access_key="ProjetoBarcarena",  # Default access key or your configured one
-        secret_key="ProjetoBarcarena",  # Default secret key or your configured one
+        #endpoint="localhost:9000",  # Use the service name from docker-compose
+        endpoint="barcarena-minio:9000",  # Use the service name from docker-compose
+        access_key="minioadmin",  # Default access key or your configured one
+        secret_key="minioadmin",  # Default secret key or your configured one
         secure=False  # Set to True if you have SSL configured
     )
     new_anexo_indicador = anexo.Anexo(fkIndicador_id= indicador_id, 
