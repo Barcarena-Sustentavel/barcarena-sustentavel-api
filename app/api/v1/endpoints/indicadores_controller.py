@@ -13,6 +13,7 @@ from fastapi import UploadFile, Form
 from minio import Minio
 import csv
 import io
+import re
 import pandas as pd
 
 indicadorRouter = APIRouter()
@@ -53,8 +54,11 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
                 dados_grafico = []
                 for value in table_data[coluna]:
                     if type(value) == str:
-                        numero = float(value.replace(',', '.'))  # trata caso venha com vírgula como separador decimal
-                        dados_grafico.append(numero)
+                        if value == '' or re.match(r'^[a-zA-Z]+$', value):
+                            dados_grafico.append(0)
+                        else:
+                            numero = float(value.replace(',', '.'))  # trata caso venha com vírgula como separador decimal
+                            dados_grafico.append(numero)
                     else:
             # valor inválido, pode ser string não numérica – decide se ignora ou adiciona como está
                         dados_grafico.append(value)

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from http import HTTPStatus
 from .aux.get_model_id import get_model_id
 from minio import Minio
+import os 
 
 kmlRouter = APIRouter()
 
@@ -27,6 +28,7 @@ async def get_kml(dimensaoNome: str, session: Session = Depends(get_db),status_c
     kml_schema.KMLSchema(id=4, nome="Mapa de Recursos Hídricos", fkDimensao=3),
     kml_schema.KMLSchema(id=5, nome="Mapa de Infraestrutura", fkDimensao=2)
 ]
+    
     return {"kmls":kmls_list}
 
 @kmlRouter.post("/admin/dimensoes/{dimensaoNome}/kml/",status_code=HTTPStatus.CREATED, response_model=kml_schema.CreateKMLSchema)
@@ -79,16 +81,21 @@ async def get_kml_coords(kmlNome: str, session: Session = Depends(get_db), statu
     #anexos = session.scalars(select(anexo.Anexo).where(
     #    anexo.Anexo.fkKML_id == await get_model_id(kmlNome, session, kml.KML)
     #))
+    path_kml = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "kml")
     path_generico = "" 
     if kmlNome ==  "Mapa de Áreas Verdes":
-        path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/150130305000001P.kml"
-    
+        #path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/150130305000001P.kml"
+        path_generico = os.path.join(path_kml, "150130305000001P.kml")
+        print(path_generico)
     if kmlNome == "Mapa de Desenvolvimento Local":
-        path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/3G_VIVO_pa_intersect_clean.kml"
-    
+        #path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/3G_VIVO_pa_intersect_clean.kml"
+        path_generico = os.path.join(path_kml, "3G_VIVO_pa_intersect_clean.kml")
+        print(path_generico)
     if kmlNome == "Mapa de Infraestrutura":
-        path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/3G_TIM_pa_intersect_clean.kml"    
-    
+        #path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/3G_TIM_pa_intersect_clean.kml"    
+        path_generico = os.path.join(path_kml, "3G_TIM_pa_intersect_clean.kml")
+        print(path_generico)
+
     anexo = open(path_generico, "r")
     
     
