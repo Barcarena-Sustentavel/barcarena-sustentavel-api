@@ -60,14 +60,14 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
 #Retorna todos os nomes dos kmls e contribuições de uma dimensão
 #Criado somente para ser utilizado na parte de administrador
 @dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/")
-async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
+async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK):
     get_dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     
     dados_dimensao = session.scalar(select(dimensao.Dimensao).where(
         dimensao.Dimensao.nome == dimensaoNome
     ))
     
-    referencias_dimensao = session.scalars(select(referencias.Referencias).where(
+    referencias_dimensao =  session.scalars(select(referencias.Referencias).where(
         referencias.Referencias.fkDimensao_id == get_dimensao_id
     ))
 
@@ -82,7 +82,11 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     contribuicao_dimensao = session.scalars(select(contribuicao.Contribuicao).where(
        contribuicao.Contribuicao.fkDimensao_id == get_dimensao_id
     ))
-    
+
+    referencias_all:list = referencias_dimensao.all()
+    indicadores_all:list = indicadores_dimensao.all()
+    kml_all:list = kml_dimensao.all()
+    contribuicao_all:list = contribuicao_dimensao.all()
     
     dados_dimensao_json = dimesao_schema.DimensaoSchema(nome=dados_dimensao.nome, descricao=dados_dimensao.descricao)
     kml_nomes = []
@@ -90,15 +94,25 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     referencias_nomes = []
     indicadores_nomes = []
 
-    for(refN, ind, kmlN, cont) in zip(referencias_dimensao.all(), indicadores_dimensao.all(), kml_dimensao.all(), contribuicao_dimensao.all()):
-        checkForNone(refN.nome, referencias_nomes)
-        checkForNone(ind.nome, indicadores_nomes)
-        checkForNone(kmlN.name, kml_nomes)
-        checkForNone(cont.nome, contribuicao_nomes)
+    #for ref in referencias_all:
+    #    referencias_nomes.append(ref.nome)
+    checarListaVazia(referencias_all, referencias_nomes)
+    checarListaVazia(indicadores_all, indicadores_nomes)
+    checarListaVazia(kml_all, kml_nomes)
+    checarListaVazia(contribuicao_all, contribuicao_nomes)
         
     return {"dimensao":dados_dimensao_json,"referencias": referencias_nomes, "indicadores": indicadores_nomes, "kmls": kml_nomes, "contribuicoes": contribuicao_nomes}
         
-def checkForNone(nome:str | None, lista:list):
-    print(nome)
-    if nome != None: lista.append(nome)
+def checarListaVazia(lista_all:list, lista_json:list):
+    if len(lista_all) == 0:
+        pass
+    else:
+        #for num in range(0,len(lista_all),1):
+        for element in lista_all:
+            try:
+                lista_json.append(element.nome) #todas as outras listas possíveis
+                #lista_json[num] = lista_all[num].nome
+            except AttributeError:
+                lista_json.append(element.name) #este except é para o caso de ser uma lista de kmls
+                #lista_json[num] = lista_all[num].name
     
