@@ -1,5 +1,5 @@
 from app.domain.schemas.response_schemas.get_indicador_response import IndicadorData
-from app.domain.schemas import anexo_schema,indicador_schema
+from app.domain.schemas import indicador_schema
 from app.domain.models import dimensao , indicador, anexo,indicador
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -71,6 +71,7 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
                 tituloGrafico=anexos.tituloGrafico,
                 descricaoGrafico=anexos.descricaoGrafico,
                 dados=dados,
+                colunas=colunas_dados,
                 categoria=table_data[categoria],
             )
             
