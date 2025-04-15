@@ -34,8 +34,24 @@ async def post_admin_referencia(dimensaoNome: str, referenciaNova: referencia_sc
 
     return referencia_response
 
+@referenciasRouter.get("/admin/dimensoes/{dimensaoNome}/referencias/{referenciaNome}/", response_model=referencia_schema.ReferenciaSchema, status_code=HTTPStatus.OK)
+async def get_admin_referencia_detail(dimensaoNome: str, referenciaNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK) -> Any:
+    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    referencia_data = session.scalar(select(referencias.Referencias).where(
+        referencias.Referencias.nome == referenciaNome,
+        referencias.Referencias.fkDimensao_id == dimensao_id
+    ))
+    
+    if not referencia_data:
+        raise HTTPException(status_code=404, detail="Referência não encontrada")
+    
+    referencia_response = referencia_schema.ReferenciaSchema(nome=referencia_data.nome, link=referencia_data.link)
+    
+    return referencia_response
+
+
 @referenciasRouter.patch("/admin/dimensoes/{dimensaoNome}/referencias/{referenciaNome}/", response_model=referencia_schema.ReferenciaSchema,status_code=HTTPStatus.OK)
-async def patch_admin_referencia(dimensaoNome: str, referenciaNome: str, referenciaNova: referencia_schema.ReferenciaSchema, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
+async def patch_admin_referencia(dimensaoNome: str, referenciaNome: str, referenciaModificado: referencia_schema.ReferenciaSchema, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     referencia_data = session.scalar(select(referencias.Referencias).where(
         referencias.Referencias.nome == referenciaNome
@@ -44,8 +60,8 @@ async def patch_admin_referencia(dimensaoNome: str, referenciaNome: str, referen
     if not referencia_data:
         raise HTTPException(status_code=404, detail="Referencia não encontrada")
 
-    referencia_data.nome = referenciaNova.nome if referenciaNova.nome != referencia_data.nome else referencia_data.nome
-    referencia_data.link = referenciaNova.link if referenciaNova.link != referencia_data.link else referencia_data.link
+    referencia_data.nome = referenciaModificado.nome if referenciaModificado.nome != referencia_data.nome else referencia_data.nome
+    referencia_data.link = referenciaModificado.link if referenciaModificado.link != referencia_data.link else referencia_data.link
     
     session.add(referencia_data)
     session.commit()
