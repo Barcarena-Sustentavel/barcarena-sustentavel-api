@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
+import app.domain.schemas.indicador_schema as indicador_schema
 #Funciona semelhante a uma serialização, utilizado para enviar o JSON
 class AnexoSchema(BaseModel):
     id: Optional[int]
@@ -24,6 +25,15 @@ class AnexoSchema(BaseModel):
                 "fkContribuicao": 1
             }
         }
+
+class AnexoIndicadorSchema(BaseModel):
+    path: Optional[str]
+    descricaoGrafico: Optional[str] 
+    tipoGrafico: Optional[str] 
+    tituloGrafico: Optional[str]
+
+class UpdateAnexoIndicadorSchema(indicador_schema.IndicadorSchema):
+    graficos: List[AnexoIndicadorSchema]
     
 
 

@@ -1,5 +1,5 @@
 from app.domain.schemas.response_schemas.get_indicador_response import IndicadorData
-from app.domain.schemas import indicador_schema
+from app.domain.schemas import indicador_schema, anexo_schema
 from app.domain.models import dimensao , indicador, anexo,indicador
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -81,6 +81,26 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
             responseDados.release_conn()
     
     return response
+@indicadorRouter.get("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", response_model=anexo_schema.UpdateAnexoIndicadorSchema)
+async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
+    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    indicadorDimensao = session.scalar(select(indicador.Indicador).where(
+        indicador.Indicador.nome == indicadorNome and indicador.Indicador.fkDimensao_id == dimensao_id
+    ))
+    anexoIndicador = session.scalars(select(anexo.Anexo).where(
+        anexo.Anexo.fkIndicador_id == await get_model_id(indicadorNome, session, indicador.Indicador)
+    ))
+    response:anexo_schema.UpdateAnexoIndicadorSchema = anexo_schema.UpdateAnexoIndicadorSchema(nome=indicadorDimensao.nome,graficos=[])
+    
+    for anexos in anexoIndicador.all():
+            response.graficos.append(anexo_schema.AnexoIndicadorSchema(
+            tituloGrafico=anexos.tituloGrafico,
+            descricaoGrafico=anexos.descricaoGrafico,
+            tipoGrafico=anexos.tipoGrafico,
+            path=anexos.path
+        ))
+    
+    return response
 
 @indicadorRouter.post("/admin/dimensoes/{dimensaoNome}/indicador/", status_code=HTTPStatus.CREATED)
 async def admin_post_indicador(
@@ -98,12 +118,12 @@ async def admin_post_indicador(
     
 @indicadorRouter.post("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/anexos/", status_code=HTTPStatus.CREATED)
 async def admin_post_anexo_indicador(dimensaoNome: str, 
-                                     indicadorNome: str, 
-                                     grafico: Annotated[UploadFile, Form()],
-                                     descricaoGrafico: Annotated[str, Form()],
-                                     tipoGrafico: Annotated[str, Form()],
-                                     tituloGrafico: Annotated[str, Form()],
-                                     session: Session = Depends(get_db)):
+                                    indicadorNome: str, 
+                                    grafico: Annotated[UploadFile, Form()],
+                                    descricaoGrafico: Annotated[str, Form()],
+                                    tipoGrafico: Annotated[str, Form()],
+                                    tituloGrafico: Annotated[str, Form()],
+                                    session: Session = Depends(get_db)):
     
     indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
@@ -133,11 +153,11 @@ async def admin_post_anexo_indicador(dimensaoNome: str,
     return
    
 
-@indicadorRouter.patch("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", response_model=indicador_schema.UpdateIndicadorSchema)
+@indicadorRouter.patch("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", response_model=anexo_schema.UpdateAnexoIndicadorSchema)
 async def admin_patch_indicador(
    dimensaoNome: str,
     indicadorNome: str,
-    dadosIndicador: indicador_schema.UpdateIndicadorSchema,
+    dadosIndicador: anexo_schema.UpdateAnexoIndicadorSchema,
     session: Session = Depends(get_db)):
 
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
@@ -145,27 +165,18 @@ async def admin_patch_indicador(
         indicador.Indicador.nome == indicadorNome and indicador.Indicador.fkDimensao_id == dimensao_id
     ))
 
-    if indicador_update == None : raise HTTPException(status_code=404, detail="Indicador não encontrado")
-
-    anexo_update = session.scalar(select(anexo.Anexo).where(
+    anexo_update = session.scalars(select(anexo.Anexo).where(
         anexo.Anexo.fkIndicador_id == indicador_update.id
     ))
 
-    if anexo_update == None : raise HTTPException(status_code=404, detail="Anexo não encontrado")
+    indicador_update.nome = dadosIndicador.nome if dadosIndicador.nome != '' else indicador_update.nome
+    for num in range(0,len(dadosIndicador.graficos),1):
+            anexo_update.all()[num].path = dadosIndicador.graficos[num].path if dadosIndicador.graficos[num].path != '' else anexo_update.all()[num].path
+            anexo_update.all()[num].descricaoGrafico = dadosIndicador.graficos[num].descricaoGrafico if dadosIndicador.graficos[num].descricaoGrafico != '' else anexo_update.all()[num].descricaoGrafico
+            anexo_update.all()[num].tipoGrafico = dadosIndicador.graficos[num].tipoGrafico if dadosIndicador.graficos[num].tipoGrafico != '' else anexo_update.all()[num].tipoGrafico
+            anexo_update.all()[num].tituloGrafico = dadosIndicador.graficos[num].tituloGrafico if dadosIndicador.graficos[num].tituloGrafico != '' else anexo_update.all()[num].tituloGrafico
 
-    if  indicador_update.nome != dadosIndicador.nome:indicador_update.nome = dadosIndicador.nome
-
-    for chave, valor in dadosIndicador.model_dump(exclude_unset=True).items():
-        if anexo_update[chave] != None:
-            if anexo_update[chave] != dadosIndicador[chave]: anexo_update[chave] = dadosIndicador[chave]
-
-    session.commit()
-    session.refresh(indicador_update)
-    session.refresh(anexo_update)
-
-    response_indicador = indicador_schema.UpdateIndicadorSchema(nome=indicador_update.nome, arquivo=anexo_update.path, tituloGrafico=anexo_update.tipoGrafico, descricaoGrafico=anexo_update.descricaoGrafico)
-
-    return response_indicador
+   
 
 @indicadorRouter.delete("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", status_code=HTTPStatus.NO_CONTENT)
 async def admin_delete_indicador(

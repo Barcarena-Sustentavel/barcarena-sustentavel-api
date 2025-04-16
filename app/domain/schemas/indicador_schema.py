@@ -33,9 +33,3 @@ class DadosGrafico(BaseModel):
 class IndicadorGraficos(IndicadorSchema):
     graficos: List[DadosGrafico]
 
-class UpdateIndicadorSchema(BaseModel):
-    nome: Optional[str]
-    path: Optional[str]
-    descricaoGrafico: Optional[str]
-    tituloGrafico: Optional[str]
-    tipoGrafico: Optional[str]
