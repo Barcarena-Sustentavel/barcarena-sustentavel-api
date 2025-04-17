@@ -1,14 +1,13 @@
-#from app.domain.schemas.response_schemas.get_indicador_response import IndicadorData
 from app.domain.schemas import indicador_schema, anexo_schema
 from app.domain.models import dimensao ,anexo,indicador
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.orm import Session
 from fastapi import APIRouter,Depends, HTTPException
 from .aux.get_model_id import get_model_id
 from app.core.database import get_db
 from http import HTTPStatus
 from minio import Minio
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import UploadFile, Form
 from minio import Minio
 import csv
@@ -94,6 +93,7 @@ async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, sess
 
     for anexos in anexoIndicador.all():
             response.graficos.append(anexo_schema.AnexoIndicadorSchema(
+            id=anexos.id,
             tituloGrafico=anexos.tituloGrafico,
             descricaoGrafico=anexos.descricaoGrafico,
             tipoGrafico=anexos.tipoGrafico,
@@ -120,7 +120,7 @@ async def admin_post_indicador(
 async def admin_update_indicador(
     dimensaoNome: str,
     indicadorNome: str,
-    indicador_data: indicador_schema.IndicadorSchema,
+    indicadorNovo: str,
     session: Session = Depends(get_db)):
 
     # Busca o ID da dimensão
@@ -142,7 +142,7 @@ async def admin_update_indicador(
         )
 
     # Atualiza os dados do indicador
-    existing_indicador.nome = indicador_data.nome
+    existing_indicador.nome = indicadorNovo
     # Atualize outros campos conforme necessário
 
     # Salva as alterações
@@ -188,49 +188,75 @@ async def admin_post_anexo_indicador(dimensaoNome: str,
 
     return
 
-
 @indicadorRouter.patch("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/anexos/{idAnexo}/", response_model=anexo_schema.UpdateAnexoIndicadorSchema)
 async def admin_patch_indicador_anexo(dimensaoNome: str,
                                 indicadorNome: str,
-                                idAnexo:int,
+                                idAnexo: int,
                                 grafico: Annotated[Optional[UploadFile], Form()] = None,
-                                descricaoGrafico: Annotated[Optional[str], Form()] = None,
-                                tipoGrafico: Annotated[Optional[str], Form()] = None,
-                                tituloGrafico: Annotated[Optional[str], Form()] = None,
+                                descricaoGrafico: Annotated[Optional[str], Form()] = '',
+                                tipoGrafico: Annotated[Optional[str], Form()] = '',
+                                tituloGrafico: Annotated[Optional[str], Form()] = '',
                                 session: Session = Depends(get_db)):
 
-        dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
-        indicadorDimensao = session.scalar(select(indicador.Indicador).where(
-            and_(
-                indicador.Indicador.nome == indicadorNome,
-                indicador.Indicador.fkDimensao_id == dimensao_id
-            )
-        ))
-
-
-        client = Minio(
-            #endpoint="localhost:9000",  # Use the service name from docker-compose
-            endpoint="barcarena-minio:9000",  # Use the service name from docker-compose
-            access_key="minioadmin",  # Default access key or your configured one
-            secret_key="minioadmin",  # Default secret key or your configured one
-            secure=False  # Set to True if you have SSL configured
+    # Get dimension and indicator IDs
+    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
+    
+    # Find the existing anexo by ID
+    existing_anexo = session.scalar(select(anexo.Anexo).where(
+        anexo.Anexo.id == idAnexo
+    ))
+    
+    if not existing_anexo:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Anexo com ID {idAnexo} não encontrado"
         )
-        new_anexo_indicador = anexo.Anexo(fkIndicador_id= indicador_id,
-                                        fkKml_id=None,
-                                        fkContribuicao_id=None,
-                                        fkDimensao_id=dimensao_id,
-                                        path=f"{dimensaoNome}/{indicadorNome}/{grafico.filename}",
-                                        descricaoGrafico=descricaoGrafico,
-                                        tipoGrafico=tipoGrafico,
-                                        tituloGrafico=tituloGrafico
-                                        )
+    
+    # Update fields if provided
+    #if descricaoGrafico is not None:
+    if descricaoGrafico != existing_anexo.descricaoGrafico:
+        existing_anexo.descricaoGrafico = descricaoGrafico
+    
+    #if tipoGrafico is not None:
+    if tipoGrafico != existing_anexo.tipoGrafico:
+        existing_anexo.tipoGrafico = tipoGrafico
+    
+    #if tituloGrafico is not None:void (arrayGrafico[i].arquivo instanceof File ? formData.append('grafico', arrayGrafico[i].arquivo) : null)
+    if tituloGrafico != existing_anexo.tituloGrafico:
+        existing_anexo.tituloGrafico = tituloGrafico
+    
+    # Handle file upload if provided
+    #if grafico.filename != existing_anexo.path:
+    if grafico is not None:
+        client = Minio(
+            endpoint="barcarena-minio:9000",
+            access_key="minioadmin",
+            secret_key="minioadmin",
+            secure=False
+        )
+        
+         # Delete the existing file from Minio
+        try:
+            client.remove_object("anexos-barcarena", existing_anexo.path)
+            file_path = f"{dimensaoNome}/{indicadorNome}/{grafico.filename}"
+            client.put_object("anexos-barcarena", file_path, grafico.file, grafico.size)
 
-        client.put_object("anexos-barcarena", f"{dimensaoNome}/{indicadorNome}/{grafico.filename}", grafico.file, grafico.size)
-        session.add(new_anexo_indicador)
-        session.commit()
-        session.refresh(new_anexo_indicador)
+            existing_anexo.path = file_path
+        except Exception as e:
+            # Log the error but continue with the upload
+            print(f"Error deleting existing file: {e}")
+        
+        # Upload new file to Minio
+        
+    
+    # Save changes
+    session.commit()
+    session.refresh(existing_anexo)
+    
+    # Return updated data
+    return await admin_get_indicador_detail(dimensaoNome, indicadorNome, session)
 
-        return
 
 @indicadorRouter.delete("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", status_code=HTTPStatus.NO_CONTENT)
 async def admin_delete_indicador(

@@ -6,8 +6,8 @@ import app.domain.schemas.indicador_schema as indicador_schema
 class AnexoSchema(BaseModel):
     id: Optional[int]
     path: str
-    descricaoGrafico: Optional[str] #str = None
-    tipoGrafico: Optional[str] #str = None
+    descricaoGrafico: Optional[str] 
+    tipoGrafico: Optional[str]
     fkIndicador: Optional[int] 
     fkDimensao: Optional[int] 
     fkKml: Optional[int]
@@ -27,6 +27,7 @@ class AnexoSchema(BaseModel):
         }
 
 class AnexoIndicadorSchema(BaseModel):
+    id: int
     path: Optional[str]
     descricaoGrafico: Optional[str] 
     tipoGrafico: Optional[str] 
