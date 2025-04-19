@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from enum import Enum
-from typing import Optional, List, Annotated, Any
-from fastapi import UploadFile, File
+from typing import Optional, List#, Annotated, Any
+#from fastapi import UploadFile, File
 #Funciona semelhante a uma serialização, utilizado para enviar o JSON
 class IndicadorSchema(BaseModel):
     nome: str
@@ -21,7 +21,7 @@ class IndicadorParameters(str, Enum):
     qualidade_ar= "Qualidade do Ar"
     pib = "PIB"
 
-    
+
 class DadosGrafico(BaseModel):
     tipoGrafico: Optional[str]
     tituloGrafico: Optional[str]
@@ -32,4 +32,3 @@ class DadosGrafico(BaseModel):
 
 class IndicadorGraficos(IndicadorSchema):
     graficos: List[DadosGrafico]
-

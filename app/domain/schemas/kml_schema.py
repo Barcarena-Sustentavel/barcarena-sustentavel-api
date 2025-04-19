@@ -1,9 +1,7 @@
 from pydantic import BaseModel
 from enum import Enum
 class KMLSchema(BaseModel):
-    id: int
     nome: str
-    fkDimensao: int
 
     class Config:
         from_atributes = True
