@@ -38,9 +38,20 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
     for anexos in anexoIndicador.all():
         try:
             responseDados = client.get_object("anexos-barcarena", anexos.path)
+            csv_data = None
             data_bytes = responseDados.read()
             # Convert bytes to string and parse as CSV
-            csv_data = io.StringIO(data_bytes.decode('utf-8'))
+            print(data_bytes)
+            decodings = ["utf-8","utf-8-sig", "iso-8859-1", "latin1", "cp1252"]
+            for dec in decodings:
+                try:
+                    csv_data = io.StringIO(data_bytes.decode(dec))
+                except Exception as e:
+                    print(f"Error decoding with {dec}: {e}")
+                    continue
+                if csv_data:
+                    break
+            #csv_data = io.StringIO(data_bytes.decode('utf-8'))
             csv_reader = csv.reader(csv_data)
             # Convert CSV data to the format needed for your response
             rows = list(csv_reader)
@@ -201,31 +212,31 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
     # Get dimension and indicator IDs
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
-    
+
     # Find the existing anexo by ID
     existing_anexo = session.scalar(select(anexo.Anexo).where(
         anexo.Anexo.id == idAnexo
     ))
-    
+
     if not existing_anexo:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail=f"Anexo com ID {idAnexo} não encontrado"
         )
-    
+
     # Update fields if provided
     #if descricaoGrafico is not None:
     if descricaoGrafico != existing_anexo.descricaoGrafico:
         existing_anexo.descricaoGrafico = descricaoGrafico
-    
+
     #if tipoGrafico is not None:
     if tipoGrafico != existing_anexo.tipoGrafico:
         existing_anexo.tipoGrafico = tipoGrafico
-    
+
     #if tituloGrafico is not None:void (arrayGrafico[i].arquivo instanceof File ? formData.append('grafico', arrayGrafico[i].arquivo) : null)
     if tituloGrafico != existing_anexo.tituloGrafico:
         existing_anexo.tituloGrafico = tituloGrafico
-    
+
     # Handle file upload if provided
     #if grafico.filename != existing_anexo.path:
     if grafico is not None:
@@ -235,7 +246,7 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
             secret_key="minioadmin",
             secure=False
         )
-        
+
          # Delete the existing file from Minio
         try:
             client.remove_object("anexos-barcarena", existing_anexo.path)
@@ -246,14 +257,14 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
         except Exception as e:
             # Log the error but continue with the upload
             print(f"Error deleting existing file: {e}")
-        
+
         # Upload new file to Minio
-        
-    
+
+
     # Save changes
     session.commit()
     session.refresh(existing_anexo)
-    
+
     # Return updated data
     return await admin_get_indicador_detail(dimensaoNome, indicadorNome, session)
 
