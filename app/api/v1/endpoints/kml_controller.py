@@ -7,8 +7,10 @@ from app.core.database import get_db
 from sqlalchemy import select
 from http import HTTPStatus
 from .aux.get_model_id import get_model_id
+from .aux.logging import loggerDebug
 from minio import Minio
 from typing import Annotated
+
 kmlRouter = APIRouter()
 
 @kmlRouter.get("/dimensoes/kml/{dimensaoNome}/",status_code=HTTPStatus.OK)
@@ -140,10 +142,9 @@ async def admin_patch_kml(dimensaoNome: str,
 async def get_kml_coords(kmlNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
     kml_id = await get_model_id(kmlNome, session, kml.KML)
     anexo_kml = session.scalar(select(anexo.Anexo).where(
-        anexo.Anexo.fkKML_id == kml_id
+        anexo.Anexo.fkKml_id == kml_id
     ))
 
-    # Retrieve KML file from MinIO
     if not anexo_kml:
         raise HTTPException(status_code=404, detail="Kml não encontrado")
 
@@ -154,31 +155,28 @@ async def get_kml_coords(kmlNome: str, session: Session = Depends(get_db), statu
     secure=False
     )
 
+    #anexo_read = None
+    #path_generico:str = ''
+    #decodings = ["utf-8","utf-8-sig", "iso-8859-1", "latin1", "cp1252"]
+    response = client.get_object("anexos-barcarena", anexo_kml.path)
+    response_read = None
     try:
-    # Get the object from MinIO
-        response = client.get_object("anexos-barcarena", anexo_kml.path)
-        path_generico = response.read().decode('utf-8')
+        response_read = response.read()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving KML file: {str(e)}")
-    #path_kml = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "kml")
-    #path_generico = ""
-    #if kmlNome ==  "Mapa de Áreas Verdes":
-    #    #path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/150130305000001P.kml"
-    #    path_generico = os.path.join(path_kml, "150130305000001P.kml")
-    #    print(path_generico)
-    #if kmlNome == "Mapa de Desenvolvimento Local":
-        #    #path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/3G_VIVO_pa_intersect_clean.kml"
-        #    path_generico = os.path.join(path_kml, "3G_VIVO_pa_intersect_clean.kml")
-        #    print(path_generico)
-        #if kmlNome == "Mapa de Infraestrutura":
-            #    #path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/3G_TIM_pa_intersect_clean.kml"
-            #    path_generico = os.path.join(path_kml, "3G_TIM_pa_intersect_clean.kml")
-            #    print(path_generico)
+        loggerDebug(e)
+    #print(response.read())
+    #for dec in decodings:
+    #try:
+        #    with open(response.read().decode('utf-8'), 'r') as file:
+            #        #path_generico = response.read().decode('utf-8')
+            #        anexo_read = file.read()
+            #    if file.closed:
+                #        return {"coordenadas": anexo_read}
+                #except Exception as e:
+                    #    loggerDebug(e)
 
-    anexo_read = open(path_generico, "r")
+    return {"coordenadas": response_read}
 
-
-    return {"coordenadas":anexo_read.read()}
 
 @kmlRouter.delete("/admin/dimensoes/{dimensaoNome}/kml/{kmlNome}/",status_code=HTTPStatus.NO_CONTENT)
 async def admin_delete_kml(kmlNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):

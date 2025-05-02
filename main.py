@@ -2,6 +2,10 @@ import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from app.api.router import router as api_router
+import logging
+
+logging.basicConfig(filename='app.log', level=logging.INFO,  format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 app = FastAPI(
     title="Barcarena Sustentavel",
     version="0.0.1",
@@ -10,7 +14,6 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    #allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
