@@ -14,6 +14,15 @@ dimensaoRouter = APIRouter()
 #Retorna todos os indicadores de uma dimensão
 #dimensaoNome: nome da dimensão
 #session: sessão do banco de dados
+
+@dimensaoRouter.get("/dimensoes/")
+async def get_dimensao(session: Session = Depends(get_db)) -> Any:
+    dimensao_data = session.scalars(select(dimensao.Dimensao))
+    dimensao_nome:list = []
+    for d in dimensao_data.all():
+        dimensao_nome.append(d.nome)
+    return {"dimensoes":dimensao_nome}
+
 @dimensaoRouter.get("/dimensoes/{dimensaoNome}/")
 async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) -> Any:
     dimensao_data = session.scalar(select(dimensao.Dimensao).where(
@@ -47,6 +56,9 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
 
     if not dimensao_data:
         raise HTTPException(status_code=404, detail="Dimensão não encontrada")
+
+    if dimensao_data.nome != update_dimensao.nome:
+        dimensao_data.nome = update_dimensao.nome
 
     if dimensao_data.descricao != update_dimensao.descricao:
         dimensao_data.descricao = update_dimensao.descricao
