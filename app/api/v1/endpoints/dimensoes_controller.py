@@ -16,10 +16,12 @@ dimensaoRouter = APIRouter()
 #session: sessão do banco de dados
 
 @dimensaoRouter.get("/dimensoes/")
-async def get_dimensao(session: Session = Depends(get_db)) -> Any:
+async def get_dimensoes(session: Session = Depends(get_db)) -> Any:
     dimensao_data = session.scalars(select(dimensao.Dimensao))
+    dimensao_sorted:list = sorted(dimensao_data.all(), key=lambda d: d.id)
+    print(dimensao_sorted)
     dimensao_nome:list = []
-    for d in dimensao_data.all():
+    for d in dimensao_sorted:
         dimensao_nome.append(d.nome)
     return {"dimensoes":dimensao_nome}
 
