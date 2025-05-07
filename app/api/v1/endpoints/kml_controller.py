@@ -9,6 +9,22 @@ from http import HTTPStatus
 from .aux.get_model_id import get_model_id
 from minio import Minio
 from typing import Annotated
+import logging
+import os
+from datetime import datetime
+
+os.makedirs('logs', exist_ok=True)
+
+# Configure logging to write to a file
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(f'logs/kml_controller_{datetime.now().strftime("%Y-%m-%d")}.log'),
+        logging.StreamHandler()
+    ]
+)
+
 kmlRouter = APIRouter()
 
 @kmlRouter.get("/dimensoes/kml/{dimensaoNome}/",status_code=HTTPStatus.OK)
@@ -102,7 +118,7 @@ async def admin_patch_kml(dimensaoNome: str,
 
     #dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     kml_id = await get_model_id(kmlNome, session, kml.KML)
-    anexo_update = session.scalar(select(anexo.Anexo).where(anexo.Anexo.fkKML_id == kml_id))
+    anexo_update = session.scalar(select(anexo.Anexo).where(anexo.Anexo.fkKml_id == kml_id))
 
     if not anexo_update:
         raise HTTPException(status_code=404, detail="Anexo não encontrado")
@@ -140,7 +156,7 @@ async def admin_patch_kml(dimensaoNome: str,
 async def get_kml_coords(kmlNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
     kml_id = await get_model_id(kmlNome, session, kml.KML)
     anexo_kml = session.scalar(select(anexo.Anexo).where(
-        anexo.Anexo.fkKML_id == kml_id
+        anexo.Anexo.fkKml_id == kml_id
     ))
 
     # Retrieve KML file from MinIO
@@ -157,28 +173,16 @@ async def get_kml_coords(kmlNome: str, session: Session = Depends(get_db), statu
     try:
     # Get the object from MinIO
         response = client.get_object("anexos-barcarena", anexo_kml.path)
-        path_generico = response.read().decode('utf-8')
+        logging.debug("KML data retrieved successfully")
+        #logging.debug(response.read())
+        #print(response.read())
     except Exception as e:
+        logging.debug(f"Error retrieving KML file: {str(e)}")
+    # or use logging.error() for more serious issues
+        logging.error(f"Error retrieving KML file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving KML file: {str(e)}")
-    #path_kml = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "kml")
-    #path_generico = ""
-    #if kmlNome ==  "Mapa de Áreas Verdes":
-    #    #path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/150130305000001P.kml"
-    #    path_generico = os.path.join(path_kml, "150130305000001P.kml")
-    #    print(path_generico)
-    #if kmlNome == "Mapa de Desenvolvimento Local":
-        #    #path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/3G_VIVO_pa_intersect_clean.kml"
-        #    path_generico = os.path.join(path_kml, "3G_VIVO_pa_intersect_clean.kml")
-        #    print(path_generico)
-        #if kmlNome == "Mapa de Infraestrutura":
-            #    #path_generico = "/home/marrior/Desktop/projetos/projeto-barcarena/barcarena-sustentavel-api/app/api/kml/3G_TIM_pa_intersect_clean.kml"
-            #    path_generico = os.path.join(path_kml, "3G_TIM_pa_intersect_clean.kml")
-            #    print(path_generico)
 
-    anexo_read = open(path_generico, "r")
-
-
-    return {"coordenadas":anexo_read.read()}
+    return {"coordenadas":response.read().decode('utf-8')}
 
 @kmlRouter.delete("/admin/dimensoes/{dimensaoNome}/kml/{kmlNome}/",status_code=HTTPStatus.NO_CONTENT)
 async def admin_delete_kml(kmlNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
