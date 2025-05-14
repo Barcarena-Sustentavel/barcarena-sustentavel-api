@@ -171,14 +171,11 @@ async def get_kml_coords(kmlNome: str, session: Session = Depends(get_db), statu
     )
 
     try:
-    # Get the object from MinIO
         response = client.get_object("anexos-barcarena", anexo_kml.path)
         logging.debug("KML data retrieved successfully")
-        #logging.debug(response.read())
-        #print(response.read())
+
     except Exception as e:
         logging.debug(f"Error retrieving KML file: {str(e)}")
-    # or use logging.error() for more serious issues
         logging.error(f"Error retrieving KML file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving KML file: {str(e)}")
 

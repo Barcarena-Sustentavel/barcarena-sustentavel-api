@@ -59,10 +59,10 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
     if not dimensao_data:
         raise HTTPException(status_code=404, detail="Dimensão não encontrada")
 
-    if dimensao_data.nome != update_dimensao.nome:
-        dimensao_data.nome = update_dimensao.nome
+    if dimensao_data.nome != update_dimensao.nome and update_dimensao.nome != "":
+        dimensao_data.nome = update_dimensao.nome  
 
-    if dimensao_data.descricao != update_dimensao.descricao:
+    if dimensao_data.descricao != update_dimensao.descricao and update_dimensao.descricao != "":
         dimensao_data.descricao = update_dimensao.descricao
 
     session.commit()

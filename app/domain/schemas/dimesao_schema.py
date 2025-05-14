@@ -1,9 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel , Field
 from enum import Enum
 
 class DimensaoSchema(BaseModel):
-    nome: str
-    descricao: str
+    nome: str = Field(default="")
+    descricao: str = Field(default="")
 
     class Config:
         from_atributes = True
