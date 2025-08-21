@@ -131,7 +131,7 @@ async def admin_post_indicador(
 async def admin_update_indicador(
     dimensaoNome: str,
     indicadorNome: str,
-    indicadorNovo: str,
+    indicadorNovo: Annotated[str, Form()],
     session: Session = Depends(get_db)):
 
     # Busca o ID da dimensão
