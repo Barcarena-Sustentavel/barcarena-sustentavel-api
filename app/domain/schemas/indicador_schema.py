@@ -32,3 +32,6 @@ class DadosGrafico(BaseModel):
 
 class IndicadorGraficos(IndicadorSchema):
     graficos: List[DadosGrafico]
+
+class IndicadorUpdate(BaseModel):
+    nome:str

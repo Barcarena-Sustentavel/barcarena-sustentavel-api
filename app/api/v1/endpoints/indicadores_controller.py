@@ -127,7 +127,7 @@ async def admin_post_indicador(
 
     return
 
-@indicadorRouter.put("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", status_code=HTTPStatus.OK)
+@indicadorRouter.put("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/")
 async def admin_update_indicador(
     dimensaoNome: str,
     indicadorNome: str,
