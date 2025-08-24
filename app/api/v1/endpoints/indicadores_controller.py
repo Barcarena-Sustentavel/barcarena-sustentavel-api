@@ -56,8 +56,10 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
             # Convert CSV data to the format needed for your response
             rows = list(csv_reader)
             table_data = pd.DataFrame(rows[1:], columns=rows[0])
-            categoria = table_data.columns[0]
-            colunas_dados = table_data.columns[1:]
+            categoria:list = []
+            coluna_dados:list = []
+            categoria = table_data.columns[0] if anexos.tipoGrafico != 'tabela' else []
+            colunas_dados = table_data.columns[1:] if anexos.tipoGrafico != 'tabela' else table_data.columns[0:]
             dados = []
 
             for coluna in table_data[colunas_dados]:
@@ -268,6 +270,52 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
     # Return updated data
     return await admin_get_indicador_detail(dimensaoNome, indicadorNome, session)
 
+@indicadorRouter.delete("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/anexos/{idAnexo}/")
+async def admin_delete_indicador_anexo(
+    dimensaoNome: str,
+    indicadorNome: str,
+    idAnexo: int,
+    session: Session = Depends(get_db)
+):
+    # Get dimension and indicator IDs (optional, for validation)
+    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
+
+    # Find the existing anexo by ID
+    existing_anexo = session.scalar(select(anexo.Anexo).where(
+        anexo.Anexo.id == idAnexo
+    ))
+
+    if not existing_anexo:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Anexo com ID {idAnexo} não encontrado"
+        )
+
+    # Delete the file from Minio storage
+    try:
+        client = Minio(
+            endpoint="barcarena-minio:9000",
+            access_key="minioadmin",
+            secret_key="minioadmin",
+            secure=False
+        )
+        client.remove_object("anexos-barcarena", existing_anexo.path)
+    except Exception as e:
+        # Log the error but continue with database deletion
+        print(f"Error deleting file from Minio: {e}")
+        pass
+        # You might want to handle this differently based on your requirements
+        # For example, you could raise an exception if file deletion fails
+
+    # Delete the anexo record from database
+    session.delete(existing_anexo)
+    session.commit()
+
+    return {
+        "message": f"Anexo com ID {idAnexo} deletado com sucesso",
+        "deleted_anexo_id": idAnexo
+    }
 
 @indicadorRouter.delete("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", status_code=HTTPStatus.NO_CONTENT)
 async def admin_delete_indicador(
