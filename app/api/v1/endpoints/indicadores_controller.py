@@ -285,7 +285,7 @@ async def admin_delete_indicador_anexo(
     existing_anexo = session.scalar(select(anexo.Anexo).where(
         anexo.Anexo.id == idAnexo
     ))
-
+    print(existing_anexo)
     if not existing_anexo:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
