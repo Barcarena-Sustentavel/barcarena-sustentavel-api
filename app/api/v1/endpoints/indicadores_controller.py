@@ -175,27 +175,39 @@ async def admin_post_anexo_indicador(dimensaoNome: str,
     indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
 
-    client = Minio(
-        #endpoint="localhost:9000",  # Use the service name from docker-compose
-        endpoint="barcarena-minio:9000",  # Use the service name from docker-compose
-        access_key="minioadmin",  # Default access key or your configured one
-        secret_key="minioadmin",  # Default secret key or your configured one
-        secure=False  # Set to True if you have SSL configured
-    )
-    new_anexo_indicador = anexo.Anexo(fkIndicador_id= indicador_id,
-                                    fkKml_id=None,
-                                    fkContribuicao_id=None,
-                                    fkDimensao_id=dimensao_id,
-                                    path=f"{dimensaoNome}/{indicadorNome}/{grafico.filename}",
-                                    descricaoGrafico=descricaoGrafico,
-                                    tipoGrafico=tipoGrafico,
-                                    tituloGrafico=tituloGrafico
-                                    )
+    try:
+        client = Minio(
+            #endpoint="localhost:9000",  # Use the service name from docker-compose
+            endpoint="barcarena-minio:9000",  # Use the service name from docker-compose
+            access_key="minioadmin",  # Default access key or your configured one
+            secret_key="minioadmin",  # Default secret key or your configured one
+            secure=False  # Set to True if you have SSL configured
+        )
+        new_anexo_indicador = anexo.Anexo(fkIndicador_id= indicador_id,
+                                        fkKml_id=None,
+                                        fkContribuicao_id=None,
+                                        fkDimensao_id=dimensao_id,
+                                        path=f"{dimensaoNome}/{indicadorNome}/{grafico.filename}",
+                                        descricaoGrafico=descricaoGrafico,
+                                        tipoGrafico=tipoGrafico,
+                                        tituloGrafico=tituloGrafico
+                                        )
 
-    client.put_object("anexos-barcarena", f"{dimensaoNome}/{indicadorNome}/{grafico.filename}", grafico.file, grafico.size)
-    session.add(new_anexo_indicador)
-    session.commit()
-    session.refresh(new_anexo_indicador)
+        client.put_object("anexos-barcarena", f"{dimensaoNome}/{indicadorNome}/{grafico.filename}", grafico.file, grafico.size)
+    except Exception as error:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail=f"Ocorreu um erro na instanciação do Minio: {error}"
+        )
+    try:
+        session.add(new_anexo_indicador)
+        session.commit()
+        session.refresh(new_anexo_indicador)
+    except Exception as error:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail=f"Ocorreu um erro na instanciação do objeto no banco de dados: {error}"
+        )
 
     return
 
@@ -294,3 +306,29 @@ async def admin_delete_indicador(
     session.commit()
 
     return
+
+@indicadorRouter.delete("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/anexos/{idAnexo}/")
+async def adim_delete_anexo_indicador(idAnexo: str,
+                                      session: Session = Depends(get_db)
+                                      ) -> None: 
+    anexo_id = idAnexo
+    
+    db_anexo = session.scalar(
+        select(anexo.Anexo).where(
+            anexo.Anexo.id == anexo_id
+        )
+    )
+    
+    if not db_anexo:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="Anexo não encontrado"
+        )
+        
+    session.delete(db_anexo)
+    session.commit()
+    
+    return
+    
+    
+    

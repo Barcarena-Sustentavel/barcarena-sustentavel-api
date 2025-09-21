@@ -9,7 +9,10 @@ from http import HTTPStatus
 
 anexoRouter = APIRouter()  
 @anexoRouter.get("/dimensoes/anexos/{dimensaoNome}/{indicadorNome}/", response_model=anexo_schema.AnexoSchema)
-async def get_anexo_indicador(dimensaoNome:str, indicadorNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
+async def get_anexo_indicador(dimensaoNome:str, 
+                              indicadorNome: str, 
+                              session: Session = Depends(get_db), 
+                              status_code=HTTPStatus.OK):
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
     anexoIndicador = session.scalar(select(anexo.Anexo).where(
