@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import dimensoes_controller, kml_controller, contribuicao_controller, indicadores_controller,anexo_controller, referencias_controller
+from app.api.v1.endpoints import dimensoes_controller, kml_controller, contribuicao_controller, indicadores_controller,anexo_controller, referencias_controller,user_controller
 
 router = APIRouter()
 
