@@ -65,7 +65,7 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
             for coluna in table_data[colunas_dados]:
                 dados_grafico = []
                 for value in table_data[coluna]:
-                    if type(value) == str:
+                    if type(value) == str and anexos.tipoGrafico != 'tabela':
                         if value == '' or re.match(r'^[a-zA-Z]+$', value):
                             dados_grafico.append(0)
                         else:
@@ -358,25 +358,22 @@ async def admin_delete_indicador(
 @indicadorRouter.delete("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/anexos/{idAnexo}/")
 async def adim_delete_anexo_indicador(idAnexo: str,
                                       session: Session = Depends(get_db)
-                                      ) -> None: 
+                                      ) -> None:
     anexo_id = idAnexo
-    
+
     db_anexo = session.scalar(
         select(anexo.Anexo).where(
             anexo.Anexo.id == anexo_id
         )
     )
-    
+
     if not db_anexo:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail="Anexo não encontrado"
         )
-        
+
     session.delete(db_anexo)
     session.commit()
-    
+
     return
-    
-    
-    

@@ -26,7 +26,7 @@ class DadosGrafico(BaseModel):
     tipoGrafico: Optional[str]
     tituloGrafico: Optional[str]
     descricaoGrafico: Optional[str]
-    dados: List[List[int | float]]
+    dados: List[List[int | float | str]]
     colunas: List[str]
     categoria: List[int | float | str]
 
