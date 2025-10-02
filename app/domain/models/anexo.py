@@ -12,6 +12,7 @@ class Anexo(Base):
     tituloGrafico = Column(String, nullable=True)
     descricaoGrafico = Column(String, nullable=True)
     fkDimensao_id = Column(Integer, ForeignKey("barcarena_sustentavel.Dimensao.id"), nullable=False)
+    fkEstudoComplementar_id = Column(Integer, ForeignKey("barcarena_sustentavel.EstudoComplementar.id"), nullable=True)
     fkKml_id = Column(Integer, ForeignKey("barcarena_sustentavel.KML.id"), nullable=True)
     fkIndicador_id = Column(Integer, ForeignKey("barcarena_sustentavel.Indicador.id"), nullable=True)
     fkContribuicao_id = Column(Integer, ForeignKey("barcarena_sustentavel.Contribuicao.id"), nullable=True)
@@ -20,3 +21,4 @@ class Anexo(Base):
     kml = relationship("KML", back_populates="anexos")
     indicador = relationship("Indicador", back_populates="anexos")
     contribuicao = relationship("Contribuicao", back_populates="anexos")
+    estudoComplementar = relationship("EstudoComplementar", back_populates="anexos")

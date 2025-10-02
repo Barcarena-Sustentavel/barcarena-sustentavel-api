@@ -1,13 +1,16 @@
-from fastapi import APIRouter,Depends, HTTPException
+from app.domain.models.anexo import Anexo
+from fastapi import APIRouter,Depends, HTTPException, UploadFile, Form
 from app.domain.schemas import dimesao_schema, indicador_schema, referencia_schema
 from app.domain.models import dimensao , indicador, indicador,  referencias, kml, contribuicao
-from app.domain.schemas.response_schemas.get_dimensao_response import DimensaoData
+from app.domain.models import estudoComplementar
 from http import HTTPStatus
 from app.core.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from typing import Any
+from typing import Any, Annotated, Optional
 from .aux.get_model_id import get_model_id
+from minio import Minio
+
 
 dimensaoRouter = APIRouter()
 
@@ -60,7 +63,7 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
         raise HTTPException(status_code=404, detail="Dimensão não encontrada")
 
     if dimensao_data.nome != update_dimensao.nome and update_dimensao.nome != "":
-        dimensao_data.nome = update_dimensao.nome  
+        dimensao_data.nome = update_dimensao.nome
 
     if dimensao_data.descricao != update_dimensao.descricao and update_dimensao.descricao != "":
         dimensao_data.descricao = update_dimensao.descricao
@@ -129,3 +132,115 @@ def checarListaVazia(lista_all:list, lista_json:list):
             except AttributeError:
                 lista_json.append(element.name) #este except é para o caso de ser uma lista de kmls
                 #lista_json[num] = lista_all[num].name
+
+@dimensaoRouter.post("/admin/dimensoes/{dimensaoNome}/estudo_complementar")
+async def create_estudo_complementar(
+    dimensaoNome: str,
+    name: Annotated[str, Form()],
+    pdf: UploadFile,
+    session: Session = Depends(get_db),
+    status_code=HTTPStatus.CREATED
+):
+
+    try:
+        client = Minio(
+            endpoint="barcarena-minio:9000",  # Nome do serviço no docker-compose
+            access_key="minioadmin",
+            secret_key="minioadmin",
+            secure=False
+        )
+
+        # Busca o ID da dimensão
+        dimensao_id = get_model_id(dimensaoNome, session, estudoComplementar.EstudoComplementar)
+
+        # Upload para MinIO
+        file_path = f"{dimensaoNome}/Estudos_Complementares/{pdf.filename}"
+        client.put_object(
+            "anexos-barcarena",
+            file_path,
+            pdf.file,
+            pdf.size
+        )
+
+        # Cria entidades
+        new_anexo_estudo_complementar = anexo.Anexo(
+            fkIndicador_id=None,
+            fkKml_id=None,
+            fkContribuicao_id=None,
+            fkDimensao_id=dimensao_id,
+            path=file_path,
+            descricaoGrafico=None,
+            tipoGrafico=None,
+            tituloGrafico=None
+        )
+
+        new_estudo_complementar = estudoComplementar.EstudoComplementar(
+            name=name,
+            fkDimensao_id=dimensao_id,
+        )
+
+        # Adiciona no banco mas só commita no final
+        session.add(new_anexo_estudo_complementar)
+        session.add(new_estudo_complementar)
+        session.commit()
+        session.refresh(new_estudo_complementar)
+
+        return new_estudo_complementar
+
+    except Exception as error:
+        session.rollback()
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail=f"Ocorreu um erro ao salvar o estudo complementar: {error}"
+        )
+
+# GET 1 - listar todos os estudos complementares de uma dimensão
+@dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/estudos_complementares")
+async def get_estudos_complementares_by_dimensao(
+    dimensaoNome: str,
+    session: Session = Depends(get_db)
+):
+    # Busca a dimensão pelo nome
+    dimensao_id = get_model_id(dimensaoNome, session, estudoComplementar.EstudoComplementar)
+
+    # Consulta apenas os nomes
+    estudos = (
+        session.query(estudoComplementar.EstudoComplementar.name)
+        .filter(estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id)
+        .all()
+    )
+    estudosList:list = []
+    for e in estudos:
+        estudosList.append(e[0])
+    # Retorna só os nomes em uma lista
+    return {"estudos": estudosList}
+
+
+# GET 2 - buscar o path de um estudo complementar específico
+@dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudo_complementar_nome}")
+async def get_estudo_complementar_path(
+    dimensaoNome: str,
+    name: str,
+    session: Session = Depends(get_db)
+):
+    # Busca a dimensão
+    dimensao_id = get_model_id(dimensaoNome, session, estudoComplementar.EstudoComplementar)
+
+    # Busca estudo pelo nome e dimensão
+    estudo = (
+        session.query(estudoComplementar.EstudoComplementar)
+        .filter(
+            estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
+            estudoComplementar.EstudoComplementar.name == name
+        )
+        .first()
+    )
+
+    if not estudo:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Estudo complementar '{name}' não encontrado para a dimensão '{dimensaoNome}'."
+        )
+
+    # Retorna o path no MinIO
+    return {"estudo": name, "path": estudo.path}
