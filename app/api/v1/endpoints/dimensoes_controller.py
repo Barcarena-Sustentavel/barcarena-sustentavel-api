@@ -1,5 +1,7 @@
 from app.domain.models.anexo import Anexo
 from fastapi import APIRouter,Depends, HTTPException, UploadFile, Form
+from fastapi.responses import StreamingResponse
+from io import BytesIO
 from app.domain.schemas import dimesao_schema, indicador_schema, referencia_schema
 from app.domain.models import dimensao , indicador, indicador,  referencias, kml, contribuicao
 from app.domain.models import estudoComplementar
@@ -53,6 +55,78 @@ async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) ->
 
     return {"dimensao":dimensao_data_json, "indicadores":indicadoresDimensao, "referencias":referenciasIndicador}
 
+@dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/artigoDimensao")
+def get_dimensao_artigo(dimensaoNome: str):
+    client = Minio(
+        #"localhost:9000",
+        "barcarena-minio:9000",
+        access_key="minioadmin",
+        secret_key="minioadmin",
+        secure=False
+    )
+    bucket_name:str = "anexos-barcarena"
+    try:
+        prefix = f"{dimensaoNome}/Artigo/"
+        objetos = list(client.list_objects(bucket_name, prefix=prefix, recursive=True))
+
+        if not objetos:
+            raise HTTPException(status_code=404, detail=f"Nenhum artigo encontrado para dimensão {dimensao}")
+
+        # pega o primeiro arquivo encontrado
+        artigo_obj = objetos[0]
+        response = client.get_object(bucket_name, artigo_obj.object_name)
+
+        nome_artigo = artigo_obj.object_name.split("/")[-1]  # extrai o nome do arquivo
+        return StreamingResponse(
+            response,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"inline; filename={nome_artigo}"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar artigo: {str(e)}")
+async def save_artigo(dimensaoNome: str, file: UploadFile):
+    client = Minio(
+        "barcarena-minio:9000",
+        access_key="minioadmin",
+        secret_key="minioadmin",
+        secure=False
+    )
+    bucket_name:str = "anexos-barcarena"
+
+    path = f"{dimensaoNome}/Artigo/{file.filename}"
+    content = await file.read()
+    client.put_object(
+        bucket_name,
+        path,
+        data=BytesIO(content),
+        length=len(content),
+        content_type="application/pdf"
+    )
+    return {"message": f"Arquivo {file.filename} salvo/atualizado com sucesso em {path}"}
+@dimensaoRouter.post("/dimensoes/{dimensaoNome}/artigoDimensao")
+async def upload_dimensao_artigo(dimensaoNome: str, file: UploadFile):
+    return await save_artigo(dimensaoNome, file
+@dimensaoRouter.patch("/dimensoes/{dimensaoNome}/artigoDimensao")
+async def update_dimensao_artigo(dimensaoNome: str, file: UploadFile):
+    return await save_artigo(dimensaoNome, file)
+@dimensaoRouter.delete("/dimensoes/{dimensaoNome}/artigoDimensao")
+def delete_dimensao_artigo(dimensaoNome: str):
+    client = Minio(
+        "barcarena-minio:9000",
+        access_key="minioadmin",
+        secret_key="minioadmin",
+        secure=False
+    )
+    try:
+        prefix = f"{dimensaoNome}/Artigo/"
+        objetos = list(client.list_objects(BUCKET_NAME, prefix=prefix, recursive=True))
+        if not objetos:
+            raise HTTPException(status_code=404, detail=f"Nenhum artigo encontrado para dimensão {dimensaoNome}")
+        artigo_obj = objetos[0]
+        client.remove_object(BUCKET_NAME, artigo_obj.object_name)
+        return {"message": f"Arquivo {artigo_obj.object_name} removido com sucesso"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao remover arquivo: {str(e)}")
 @dimensaoRouter.patch("/admin/dimensoes/{dimensaoNome}/", status_code=HTTPStatus.OK)
 async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.DimensaoSchema,session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     dimensao_data = session.scalar(select(dimensao.Dimensao).where(
@@ -216,7 +290,7 @@ async def get_estudos_complementares_by_dimensao(
     return {"estudos": estudosList}
 
 
-# GET 2 - buscar o path de um estudo complementar específico
+# GET 2 - buscar o path de um estudo complementar específico, usado para modificações dos dados do estudo complementar
 @dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudo_complementar_nome}")
 async def get_estudo_complementar_path(
     dimensaoNome: str,
