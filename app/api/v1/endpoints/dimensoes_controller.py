@@ -1,3 +1,4 @@
+from sqlalchemy.sql import false
 from app.domain.models.anexo import Anexo
 from fastapi import APIRouter,Depends, HTTPException, UploadFile, Form
 from fastapi.responses import StreamingResponse
@@ -58,7 +59,6 @@ async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) ->
 @dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/artigoDimensao")
 def get_dimensao_artigo(dimensaoNome: str):
     client = Minio(
-        #"localhost:9000",
         "barcarena-minio:9000",
         access_key="minioadmin",
         secret_key="minioadmin",
@@ -84,7 +84,8 @@ def get_dimensao_artigo(dimensaoNome: str):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar artigo: {str(e)}")
-async def save_artigo(dimensaoNome: str, file: UploadFile):
+
+async def save_artigo(dimensaoNome: str, file: UploadFile, patch: bool):
     client = Minio(
         "barcarena-minio:9000",
         access_key="minioadmin",
@@ -95,6 +96,9 @@ async def save_artigo(dimensaoNome: str, file: UploadFile):
 
     path = f"{dimensaoNome}/Artigo/{file.filename}"
     content = await file.read()
+    if(patch == True):
+        #O Minio não possui um comando para substituir um arquivo, portanto é preciso deletar o arquivo primeiro
+        delete_dimensao_artigo(dimensaoNome=dimensaoNome)
     client.put_object(
         bucket_name,
         path,
@@ -105,12 +109,14 @@ async def save_artigo(dimensaoNome: str, file: UploadFile):
     return {"message": f"Arquivo {file.filename} salvo/atualizado com sucesso em {path}"}
 @dimensaoRouter.post("/dimensoes/{dimensaoNome}/artigoDimensao")
 async def upload_dimensao_artigo(dimensaoNome: str, file: UploadFile):
-    return await save_artigo(dimensaoNome, file
+    return await save_artigo(dimensaoNome, file, False)
 @dimensaoRouter.patch("/dimensoes/{dimensaoNome}/artigoDimensao")
 async def update_dimensao_artigo(dimensaoNome: str, file: UploadFile):
-    return await save_artigo(dimensaoNome, file)
+    return await save_artigo(dimensaoNome, file, True)
+
 @dimensaoRouter.delete("/dimensoes/{dimensaoNome}/artigoDimensao")
 def delete_dimensao_artigo(dimensaoNome: str):
+    bucket_name:str = "anexos-barcarena"
     client = Minio(
         "barcarena-minio:9000",
         access_key="minioadmin",
@@ -119,11 +125,11 @@ def delete_dimensao_artigo(dimensaoNome: str):
     )
     try:
         prefix = f"{dimensaoNome}/Artigo/"
-        objetos = list(client.list_objects(BUCKET_NAME, prefix=prefix, recursive=True))
+        objetos = list(client.list_objects(bucket_name, prefix=prefix, recursive=True))
         if not objetos:
             raise HTTPException(status_code=404, detail=f"Nenhum artigo encontrado para dimensão {dimensaoNome}")
         artigo_obj = objetos[0]
-        client.remove_object(BUCKET_NAME, artigo_obj.object_name)
+        client.remove_object(bucket_name, artigo_obj.object_name)
         return {"message": f"Arquivo {artigo_obj.object_name} removido com sucesso"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao remover arquivo: {str(e)}")
@@ -154,10 +160,30 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
 async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK):
     get_dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
 
+    client = Minio(
+        "barcarena-minio:9000",
+        access_key="minioadmin",
+        secret_key="minioadmin",
+        secure=False
+    )
+    bucket_name:str = "anexos-barcarena"
+    prefix = f"{dimensaoNome}/Artigo/"
+    objetos = list(client.list_objects(bucket_name, prefix=prefix, recursive=True))
+    nome_artigo:str = ""
+    if objetos:
+        artigo_obj = objetos[0]
+        nome_artigo = artigo_obj.object_name.split("/")[-1]  # extrai o nome do arquivo
+         #raise HTTPException(status_code=404, detail=f"Nenhum artigo encontrado para dimensão {dimensao}")
+
+     # pega o primeiro arquivo encontrado
+    #artigo_obj = objetos[0]
+
+    #nome_artigo = artigo_obj.object_name.split("/")[-1]  # extrai o nome do arquivo
+    print(nome_artigo)
+
     dados_dimensao = session.scalar(select(dimensao.Dimensao).where(
         dimensao.Dimensao.nome == dimensaoNome
     ))
-    print(dados_dimensao.nome)
     referencias_dimensao =  session.scalars(select(referencias.Referencias).where(
         referencias.Referencias.fkDimensao_id == get_dimensao_id
     ))
@@ -170,29 +196,20 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
         kml.KML.fkDimensao_id == get_dimensao_id
     ))
 
-    contribuicao_dimensao = session.scalars(select(contribuicao.Contribuicao).where(
-       contribuicao.Contribuicao.fkDimensao_id == get_dimensao_id
-    ))
-
     referencias_all:list = referencias_dimensao.all()
     indicadores_all:list = indicadores_dimensao.all()
     kml_all:list = kml_dimensao.all()
-    contribuicao_all:list = contribuicao_dimensao.all()
 
     dados_dimensao_json = dimesao_schema.DimensaoSchema(nome=dados_dimensao.nome, descricao=dados_dimensao.descricao)
     kml_nomes = []
-    contribuicao_nomes = []
     referencias_nomes = []
     indicadores_nomes = []
 
-    #for ref in referencias_all:
-    #    referencias_nomes.append(ref.nome)
     checarListaVazia(referencias_all, referencias_nomes)
     checarListaVazia(indicadores_all, indicadores_nomes)
     checarListaVazia(kml_all, kml_nomes)
-    checarListaVazia(contribuicao_all, contribuicao_nomes)
 
-    return {"dimensao":dados_dimensao_json,"referencias": referencias_nomes, "indicadores": indicadores_nomes, "kmls": kml_nomes, "contribuicoes": contribuicao_nomes}
+    return {"dimensao":dados_dimensao_json,"referencias": referencias_nomes, "indicadores": indicadores_nomes, "kmls": kml_nomes, "artigo": nome_artigo}
 
 def checarListaVazia(lista_all:list, lista_json:list):
     if len(lista_all) == 0:
