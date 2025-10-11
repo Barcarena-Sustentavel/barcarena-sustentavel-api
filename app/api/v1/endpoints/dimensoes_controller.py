@@ -5,7 +5,7 @@ from io import BytesIO
 from app.domain.schemas import dimesao_schema, indicador_schema, referencia_schema
 from app.domain.models import dimensao , indicador, indicador,  referencias, kml, contribuicao
 from app.domain.models.anexo import Anexo
-from fastapi import APIRouter,Depends, HTTPException, UploadFile, Form, File
+from fastapi import APIRouter,Depends, HTTPException, UploadFile, Form, File, Response
 from app.domain.schemas import dimesao_schema, indicador_schema, referencia_schema
 from app.domain.models import dimensao , indicador, indicador,  referencias, kml, contribuicao, estudoComplementar
 from app.domain.models import estudoComplementar
@@ -44,22 +44,29 @@ async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) ->
     indicadores = session.scalars(select(indicador.Indicador).where(
         indicador.Indicador.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     ))
-    refrencias = session.scalars(select(referencias.Referencias).where(
+    refs = session.scalars(select(referencias.Referencias).where(
         referencias.Referencias.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    ))
+    estudos_complementares = session.scalars(select(estudoComplementar.EstudoComplementar).where(
+        estudoComplementar.EstudoComplementar.fkDimensao_id == await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     ))
 
     indicadoresDimensao = []
-    referenciasIndicador = []
+    refsIndicador = []
+    estudosComplementaresDimensao = []
     indicadoresall = indicadores.all()
-    refrenciasall = refrencias.all()
+    refsall = refs.all()
+    estudosComplementaresAll = estudos_complementares.all()
 
     dimensao_data_json = dimesao_schema.DimensaoSchema(id=dimensao_data.id, nome=dimensao_data.nome, descricao=dimensao_data.descricao)
     for a in indicadoresall:
         indicadoresDimensao.append(a.nome)
-    for b in refrenciasall:
-        referenciasIndicador.append(referencia_schema.ReferenciaSchema(id=b.id, nome=b.nome, fkDimensao=b.fkDimensao_id, link=b.link))
+    for b in refsall:
+        refsIndicador.append(referencia_schema.ReferenciaSchema(id=b.id, nome=b.nome, fkDimensao=b.fkDimensao_id, link=b.link))
+    for c in estudosComplementaresAll:
+        estudosComplementaresDimensao.append(c.name)
 
-    return {"dimensao":dimensao_data_json, "indicadores":indicadoresDimensao, "referencias":referenciasIndicador}
+    return {"dimensao":dimensao_data_json, "indicadores":indicadoresDimensao, "referencias":refsIndicador, "estudos_complementares":estudosComplementaresDimensao}
 
 @dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/artigoDimensao")
 def get_dimensao_artigo(dimensaoNome: str):
@@ -250,7 +257,6 @@ async def create_estudo_complementar(
     session: Session = Depends(get_db),
     status_code=HTTPStatus.CREATED
 ):
-    print("POST ESTUDO")
     try:
         client = Minio(
             endpoint="barcarena-minio:9000",  # Nome do serviço no docker-compose
@@ -404,6 +410,56 @@ async def get_estudo_complementar(
 
 
     return {"estudo": estudoComplementarNome, "arquivo": {"arquivo_nome": nome_arquivo, "arquivo_data": pdf_file_b64}}
+
+@dimensaoRouter.get("/dimensoes/{dimensaoNome}/estudo_complementar/{estudoComplementarNome}/anexo/")
+async def get_anexo_estudo_complementar(
+    dimensaoNome: str,
+    estudoComplementarNome: str,
+    session: Session = Depends(get_db)
+):
+    # Busca a dimensão
+    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+
+    # Busca estudo pelo nome e dimensão
+    estudo = (
+        session.query(estudoComplementar.EstudoComplementar)
+        .filter(
+            estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
+            estudoComplementar.EstudoComplementar.name == estudoComplementarNome
+        )
+        .first()
+    )
+    
+    if not estudo:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Estudo complementar '{estudoComplementarNome}' não encontrado para a dimensão '{dimensaoNome}'."
+        )
+        
+    try:
+        client = Minio(
+            "barcarena-minio:9000",
+            access_key="minioadmin",
+            secret_key="minioadmin",
+            secure=False
+        )
+
+        pdf_file = client.get_object("anexos-barcarena", estudo.anexos[0].path)
+        data = pdf_file.read()
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail=f"Ocorreu um erro na instanciação do Minio: {error}"
+        )
+        
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename={os.path.basename(estudo.anexos[0].path)}'}
+    )
+        
+    
 
 @dimensaoRouter.patch("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudo_complementar_nome}/")
 async def patch_estudo_complementar(
