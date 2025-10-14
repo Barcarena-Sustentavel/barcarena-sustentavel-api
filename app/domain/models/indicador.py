@@ -12,3 +12,4 @@ class Indicador(Base):
 
     dimensao = relationship("Dimensao", back_populates="indicadores")
     anexos = relationship("Anexo", back_populates="indicador")
+    posicao = relationship("Posicao", back_populates="indicador")

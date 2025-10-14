@@ -11,5 +11,5 @@ class Posicao(Base):
     fkIndicador_id = Column(Integer, ForeignKey("barcarena_sustentavel.Indicador.id"), nullable=True)
     fkAnexo_id = Column(Integer, ForeignKey("barcarena_sustentavel.Anexo.id"), nullable=True)
 
-    indicador = relationship("Indicador", back_populates="indicadores")
-    anexos = relationship("Anexo", back_populates="indicador")
+    indicador = relationship("Indicador", back_populates="posicao")
+    anexos = relationship("Anexo", back_populates="posicao")

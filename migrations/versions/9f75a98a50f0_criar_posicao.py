@@ -24,6 +24,8 @@ def upgrade():
         sa.Column('posicao', sa.Integer, nullable=False),
         sa.Column('fkIndicador_id', sa.Integer, sa.ForeignKey('barcarena_sustentavel.Indicador.id'), nullable=True),
         sa.Column('fkAnexo_id', sa.Integer, sa.ForeignKey('barcarena_sustentavel.Anexo.id'), nullable=True),
+        sa.ForeignKeyConstraint(['fkIndicador_id'], ['barcarena_sustentavel.Indicador.id']),
+        sa.ForeignKeyConstraint(['fkAnexo_id'], ['barcarena_sustentavel.Anexo.id']),
         schema='barcarena_sustentavel'
     )
 

@@ -134,21 +134,29 @@ async def admin_post_indicador(
 
     return
 
-@indicadorRouter.put("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/")
+@indicadorRouter.patch("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/")
 async def admin_update_indicador(
     dimensaoNome: str,
     indicadorNome: str,
-    indicadorNovo: Annotated[str, Form()],
+    indicadorNovo: Annotated[str | None, Form()] = None,
+    posicaoNovo: Annotated[int | None, Form()] = None,
     session: Session = Depends(get_db)):
 
     # Busca o ID da dimensão
-    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    #dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
 
     # Busca o indicador existente
     existing_indicador = session.scalar(select(indicador.Indicador).where(
         and_(
             indicador.Indicador.nome == indicadorNome,
-            indicador.Indicador.fkDimensao_id == dimensao_id
+            indicador.Indicador.id == indicador_id
+        )
+    ))
+
+    existing_posicao = session.scalar(select(posicao.Posicao).where(
+        and_(
+            posicao.Posicao.fkIndicador_id == indicador_id,
         )
     ))
 
@@ -159,13 +167,25 @@ async def admin_update_indicador(
             detail=f"Indicador '{indicadorNome}' não encontrado na dimensão '{dimensaoNome}'"
         )
 
+    if not existing_posicao:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Posição do indicador '{indicadorNome}' não encontrada na dimensão"
+        )
+
     # Atualiza os dados do indicador
-    existing_indicador.nome = indicadorNovo
+    if(indicadorNovo != None):
+        existing_indicador.nome = indicadorNovo
+
+    if(posicaoNovo != None):
+        existing_posicao.posicao = posicaoNovo
+
     # Atualize outros campos conforme necessário
 
     # Salva as alterações
     session.commit()
     session.refresh(existing_indicador)
+    session.refresh(existing_posicao)
 
     return
 

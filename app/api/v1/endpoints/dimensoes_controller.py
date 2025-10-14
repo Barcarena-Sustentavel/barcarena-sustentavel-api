@@ -2,14 +2,11 @@ from sqlalchemy.sql import false
 from app.domain.models.anexo import Anexo
 from fastapi.responses import StreamingResponse
 from io import BytesIO
-from app.domain.schemas import dimesao_schema, indicador_schema, referencia_schema
-from app.domain.models import dimensao , indicador, indicador,  referencias, kml, contribuicao
 from app.domain.models.anexo import Anexo
 from app.domain.models.posicao import Posicao
 from fastapi import APIRouter,Depends, HTTPException, UploadFile, Form, File, Response
 from app.domain.schemas import dimesao_schema, indicador_schema, referencia_schema
-from app.domain.models import dimensao , indicador, indicador,  referencias, kml, contribuicao, estudoComplementar
-from app.domain.models import estudoComplementar
+from app.domain.models import dimensao , indicador, indicador,  referencias, estudoComplementar
 from http import HTTPStatus
 from app.core.database import get_db
 from sqlalchemy.orm import Session
@@ -61,7 +58,10 @@ async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) ->
 
     dimensao_data_json = dimesao_schema.DimensaoSchema(id=dimensao_data.id, nome=dimensao_data.nome, descricao=dimensao_data.descricao)
     for a in indicadoresall:
-        indicadoresDimensao.append(a.nome)
+        posicao = session.scalar(select(Posicao).where(
+            Posicao.fkIndicador_id == a.id
+        ))
+        indicadoresDimensao.append({'nome': a.nome, 'posicao': posicao.posicao})
     for b in refsall:
         refsIndicador.append(referencia_schema.ReferenciaSchema(id=b.id, nome=b.nome, fkDimensao=b.fkDimensao_id, link=b.link))
     for c in estudosComplementaresAll:
@@ -219,11 +219,11 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     return {"dimensao":dados_dimensao_json,"referencias": referencias_nomes, "indicadores": indicadores_nomes, "artigo": nome_artigo, "estudos_complementares": estudos_complementares_nomes}
 
 def checarListaVazia(lista_all:list, lista_json:list, inserirPosicao:bool, session):
-    json_element:dict = {}
     if len(lista_all) == 0:
         pass
     else:
         for element in lista_all:
+            json_element:dict = {}
             json_element["nome"] = element.nome
             if(inserirPosicao):
                 if isinstance(element, indicador.Indicador):
@@ -232,7 +232,8 @@ def checarListaVazia(lista_all:list, lista_json:list, inserirPosicao:bool, sessi
                 elif isinstance(element, Anexo):
                     posicao = session.query(Posicao).filter(Posicao.fkAnexo_id == element.id).first()
                     json_element["posicao"] = posicao.posicao
-
+            else:
+                json_element["posicao"] = None
             lista_json.append(json_element)
             #todas as outras listas possíveis
             #lista_json[num] = lista_all[num].nome
@@ -315,7 +316,7 @@ async def get_estudos_complementares_by_dimensao(
 
     # Consulta apenas os nomes
     estudos = (
-        session.query(estudoComplementar.EstudoComplementar.name)
+        session.query(estudoComplementar.EstudoComplementar.nome)
         .filter(estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id)
         .all()
     )
@@ -341,7 +342,7 @@ async def get_estudo_complementar_path(
         session.query(estudoComplementar.EstudoComplementar)
         .filter(
             estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
-            estudoComplementar.EstudoComplementar.name == name
+            estudoComplementar.EstudoComplementar.nome == name
         )
         .first()
     )
@@ -369,7 +370,7 @@ async def get_estudo_complementar(
         session.query(estudoComplementar.EstudoComplementar)
         .filter(
             estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
-            estudoComplementar.EstudoComplementar.name == estudoComplementarNome
+            estudoComplementar.EstudoComplementar.nome == estudoComplementarNome
         )
         .first()
     )
@@ -416,7 +417,7 @@ async def get_anexo_estudo_complementar(
         session.query(estudoComplementar.EstudoComplementar)
         .filter(
             estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
-            estudoComplementar.EstudoComplementar.name == estudoComplementarNome
+            estudoComplementar.EstudoComplementar.nome == estudoComplementarNome
         )
         .first()
     )
@@ -467,7 +468,7 @@ async def patch_estudo_complementar(
         session.query(estudoComplementar.EstudoComplementar)
         .filter(
             estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
-            estudoComplementar.EstudoComplementar.name == estudo_complementar_nome
+            estudoComplementar.EstudoComplementar.nome == estudo_complementar_nome
         )
         .first()
     )
@@ -526,7 +527,7 @@ async def delete_estudo_complementar(
         session.query(estudoComplementar.EstudoComplementar)
         .filter(
             estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
-            estudoComplementar.EstudoComplementar.name == estudo_complementar_nome
+            estudoComplementar.EstudoComplementar.nome == estudo_complementar_nome
         )
         .first()
     )

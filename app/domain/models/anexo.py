@@ -22,3 +22,4 @@ class Anexo(Base):
     indicador = relationship("Indicador", back_populates="anexos")
     contribuicao = relationship("Contribuicao", back_populates="anexos")
     estudoComplementar = relationship("EstudoComplementar", back_populates="anexos")
+    posicao = relationship("Posicao", back_populates="anexos")

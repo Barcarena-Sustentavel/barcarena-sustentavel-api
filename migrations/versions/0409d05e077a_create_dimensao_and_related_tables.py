@@ -1,7 +1,7 @@
 """create dimensao and related tables
 
 Revision ID: 0409d05e077a
-Revises: 
+Revises:
 Create Date: 2025-01-22 12:47:59.952253
 
 """
