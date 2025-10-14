@@ -8,7 +8,6 @@ down_revision: str | None = '171ac2610709'
 branch_labels: str | None = None
 depends_on: str | None = None
 
-
 def upgrade() -> None:
     op.create_table(
         'User',

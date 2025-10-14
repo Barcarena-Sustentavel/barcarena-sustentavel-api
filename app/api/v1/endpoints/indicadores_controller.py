@@ -1,5 +1,5 @@
 from app.domain.schemas import indicador_schema, anexo_schema
-from app.domain.models import dimensao ,anexo,indicador
+from app.domain.models import dimensao ,anexo,indicador, posicao
 from sqlalchemy import select, and_
 from sqlalchemy.orm import Session
 from fastapi import APIRouter,Depends, HTTPException
@@ -27,7 +27,6 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
     ))
 
     client = Minio(
-        #"localhost:9000",
         "barcarena-minio:9000",
         access_key="minioadmin",
         secret_key="minioadmin",
@@ -119,6 +118,7 @@ async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, sess
 async def admin_post_indicador(
     dimensaoNome: str,
     indicadorNome: indicador_schema.IndicadorSchema,
+    position: int,
     session: Session = Depends(get_db)):
 
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
@@ -126,6 +126,11 @@ async def admin_post_indicador(
     session.add(new_indicador)
     session.commit()
     session.refresh(new_indicador)
+
+    new_indicador_posicao = posicao.Posicao(posicao=position, fkIndicador_id=new_indicador.id, fkAnexo_id=None)
+    session.add(new_indicador_posicao)
+    session.commit()
+    session.refresh(new_indicador_posicao)
 
     return
 

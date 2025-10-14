@@ -5,6 +5,7 @@ from io import BytesIO
 from app.domain.schemas import dimesao_schema, indicador_schema, referencia_schema
 from app.domain.models import dimensao , indicador, indicador,  referencias, kml, contribuicao
 from app.domain.models.anexo import Anexo
+from app.domain.models.posicao import Posicao
 from fastapi import APIRouter,Depends, HTTPException, UploadFile, Form, File, Response
 from app.domain.schemas import dimesao_schema, indicador_schema, referencia_schema
 from app.domain.models import dimensao , indicador, indicador,  referencias, kml, contribuicao, estudoComplementar
@@ -184,14 +185,7 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     nome_artigo:str = ""
     if objetos:
         artigo_obj = objetos[0]
-        nome_artigo = artigo_obj.object_name.split("/")[-1]  # extrai o nome do arquivo
-         #raise HTTPException(status_code=404, detail=f"Nenhum artigo encontrado para dimensão {dimensao}")
-
-     # pega o primeiro arquivo encontrado
-    #artigo_obj = objetos[0]
-
-    #nome_artigo = artigo_obj.object_name.split("/")[-1]  # extrai o nome do arquivo
-    print(nome_artigo)
+        nome_artigo = artigo_obj.object_name.split("/")[-1]
 
     dados_dimensao = session.scalar(select(dimensao.Dimensao).where(
         dimensao.Dimensao.nome == dimensaoNome
@@ -205,11 +199,6 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     ))
 
 
-   # kml_all:list = kml_dimensao.all()
-    #contribuicao_dimensao = session.scalars(select(contribuicao.Contribuicao).where(
-    #   contribuicao.Contribuicao.fkDimensao_id == get_dimensao_id
-    #))
-
     estudos_complementares_dimensao = session.scalars(select(estudoComplementar.EstudoComplementar).where(
         estudoComplementar.EstudoComplementar.fkDimensao_id == get_dimensao_id
     ))
@@ -219,35 +208,37 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     estudos_complementares_all:list = estudos_complementares_dimensao.all()
 
     dados_dimensao_json = dimesao_schema.DimensaoSchema(nome=dados_dimensao.nome, descricao=dados_dimensao.descricao)
-    kml_nomes = []
     referencias_nomes = []
     indicadores_nomes = []
     estudos_complementares_nomes = []
 
-    checarListaVazia(referencias_all, referencias_nomes)
-    checarListaVazia(indicadores_all, indicadores_nomes)
-    #checarListaVazia(kml_all, kml_nomes)
+    checarListaVazia(referencias_all, referencias_nomes, False, session)
+    checarListaVazia(indicadores_all, indicadores_nomes, True, session)
 
-    #checarListaVazia(contribuicao_all, contribuicao_nomes)
-    checarListaVazia(estudos_complementares_all, estudos_complementares_nomes)
-    #return {"dimensao":dados_dimensao_json,"referencias": referencias_nomes, "indicadores": indicadores_nomes, "kmls": kml_nomes, "artigo": nome_artigo}
-    return {"dimensao":dados_dimensao_json,"referencias": referencias_nomes, "indicadores": indicadores_nomes, "kmls": kml_nomes, "artigo": nome_artigo, "estudos_complementares": estudos_complementares_nomes}
+    checarListaVazia(estudos_complementares_all, estudos_complementares_nomes, False, session)
+    return {"dimensao":dados_dimensao_json,"referencias": referencias_nomes, "indicadores": indicadores_nomes, "artigo": nome_artigo, "estudos_complementares": estudos_complementares_nomes}
 
-    #return {"dimensao":dados_dimensao_json,"referencias": referencias_nomes, "indicadores": indicadores_nomes, "kmls": kml_nomes, "contribuicoes": contribuicao_nomes, "estudos_complementares": estudos_complementares_nomes}
-
-
-def checarListaVazia(lista_all:list, lista_json:list):
+def checarListaVazia(lista_all:list, lista_json:list, inserirPosicao:bool, session):
+    json_element:dict = {}
     if len(lista_all) == 0:
         pass
     else:
-        #for num in range(0,len(lista_all),1):
         for element in lista_all:
-            try:
-                lista_json.append(element.nome) #todas as outras listas possíveis
-                #lista_json[num] = lista_all[num].nome
-            except AttributeError:
-                lista_json.append(element.name) #este except é para o caso de ser uma lista de kmls
-                #lista_json[num] = lista_all[num].name
+            json_element["nome"] = element.nome
+            if(inserirPosicao):
+                if isinstance(element, indicador.Indicador):
+                    posicao = session.query(Posicao).filter(Posicao.fkIndicador_id == element.id).first()
+                    json_element["posicao"] = posicao.posicao
+                elif isinstance(element, Anexo):
+                    posicao = session.query(Posicao).filter(Posicao.fkAnexo_id == element.id).first()
+                    json_element["posicao"] = posicao.posicao
+
+            lista_json.append(json_element)
+            #todas as outras listas possíveis
+            #lista_json[num] = lista_all[num].nome
+            #except AttributeError:
+            #lista_json.append(element.name) #este except é para o caso de ser uma lista de kmls
+            #lista_json[num] = lista_all[num].name
 
 @dimensaoRouter.post("/admin/dimensoes/{dimensaoNome}/estudo_complementar/", status_code=HTTPStatus.CREATED)
 async def create_estudo_complementar(
@@ -429,13 +420,13 @@ async def get_anexo_estudo_complementar(
         )
         .first()
     )
-    
+
     if not estudo:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail=f"Estudo complementar '{estudoComplementarNome}' não encontrado para a dimensão '{dimensaoNome}'."
         )
-        
+
     try:
         client = Minio(
             "barcarena-minio:9000",
@@ -452,14 +443,14 @@ async def get_anexo_estudo_complementar(
             status_code=HTTPStatus.CONFLICT,
             detail=f"Ocorreu um erro na instanciação do Minio: {error}"
         )
-        
+
     return Response(
         content=data,
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename={os.path.basename(estudo.anexos[0].path)}'}
     )
-        
-    
+
+
 
 @dimensaoRouter.patch("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudo_complementar_nome}/")
 async def patch_estudo_complementar(
