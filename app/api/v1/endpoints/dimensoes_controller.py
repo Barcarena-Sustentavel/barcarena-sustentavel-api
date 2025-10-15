@@ -65,7 +65,7 @@ async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) ->
     for b in refsall:
         refsIndicador.append(referencia_schema.ReferenciaSchema(id=b.id, nome=b.nome, fkDimensao=b.fkDimensao_id, link=b.link))
     for c in estudosComplementaresAll:
-        estudosComplementaresDimensao.append(c.name)
+        estudosComplementaresDimensao.append(c.nome)
 
     return {"dimensao":dimensao_data_json, "indicadores":indicadoresDimensao, "referencias":refsIndicador, "estudos_complementares":estudosComplementaresDimensao}
 
@@ -235,11 +235,6 @@ def checarListaVazia(lista_all:list, lista_json:list, inserirPosicao:bool, sessi
             else:
                 json_element["posicao"] = None
             lista_json.append(json_element)
-            #todas as outras listas possíveis
-            #lista_json[num] = lista_all[num].nome
-            #except AttributeError:
-            #lista_json.append(element.name) #este except é para o caso de ser uma lista de kmls
-            #lista_json[num] = lista_all[num].name
 
 @dimensaoRouter.post("/admin/dimensoes/{dimensaoNome}/estudo_complementar/", status_code=HTTPStatus.CREATED)
 async def create_estudo_complementar(
