@@ -32,6 +32,7 @@ class AnexoIndicadorSchema(BaseModel):
     descricaoGrafico: Optional[str] 
     tipoGrafico: Optional[str] 
     tituloGrafico: Optional[str]
+    posicaoGrafico: Optional[int]
 
 class UpdateAnexoIndicadorSchema(indicador_schema.IndicadorSchema):
     graficos: List[AnexoIndicadorSchema]

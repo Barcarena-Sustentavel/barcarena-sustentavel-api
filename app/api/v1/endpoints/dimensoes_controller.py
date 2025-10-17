@@ -54,7 +54,10 @@ async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) ->
 
     dimensao_data_json = dimesao_schema.DimensaoSchema(id=dimensao_data.id, nome=dimensao_data.nome, descricao=dimensao_data.descricao)
     for a in indicadoresall:
-        indicadoresDimensao.append(a.nome)
+        posicao = session.scalar(select(Posicao).where(
+            Posicao.fkIndicador_id == a.id
+        ))
+        indicadoresDimensao.append({'nome': a.nome, 'posicao': posicao.posicao if posicao.posicao else 0})
     for b in refsall:
         refsIndicador.append(referencia_schema.ReferenciaSchema(id=b.id, nome=b.nome, fkDimensao=b.fkDimensao_id, link=b.link))
     for c in estudosComplementaresAll:
@@ -142,12 +145,18 @@ def checarListaVazia(lista_all:list, lista_json:list):
     else:
         #for num in range(0,len(lista_all),1):
         for element in lista_all:
-            try:
-                lista_json.append(element.nome) #todas as outras listas possíveis
-                #lista_json[num] = lista_all[num].nome
-            except AttributeError:
-                lista_json.append(element.name) #este except é para o caso de ser uma lista de kmls
-                #lista_json[num] = lista_all[num].name
+            json_element:dict = {}
+            json_element["nome"] = element.nome
+            # if(inserirPosicao):
+            #     if isinstance(element, indicador.Indicador):
+            #         posicao = session.query(Posicao).filter(Posicao.fkIndicador_id == element.id).first()
+            #         json_element["posicao"] = posicao.posicao
+            #     elif isinstance(element, Anexo):
+            #         posicao = session.query(Posicao).filter(Posicao.fkAnexo_id == element.id).first()
+            #         json_element["posicao"] = posicao.posicao
+            # else:
+            #     json_element["posicao"] = None
+            lista_json.append(json_element)
 
 @dimensaoRouter.post("/admin/dimensoes/{dimensaoNome}/estudo_complementar/", status_code=HTTPStatus.CREATED)
 async def create_estudo_complementar(
