@@ -1,5 +1,5 @@
 from app.domain.schemas import indicador_schema, anexo_schema
-from app.domain.models import dimensao ,anexo,indicador
+from app.domain.models import dimensao ,anexo,indicador, posicao
 from sqlalchemy import select, and_
 from sqlalchemy.orm import Session
 from fastapi import APIRouter,Depends, HTTPException
@@ -27,7 +27,6 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
     ))
 
     client = Minio(
-        #"localhost:9000",
         "barcarena-minio:9000",
         access_key="minioadmin",
         secret_key="minioadmin",
@@ -56,14 +55,16 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
             # Convert CSV data to the format needed for your response
             rows = list(csv_reader)
             table_data = pd.DataFrame(rows[1:], columns=rows[0])
-            categoria = table_data.columns[0]
-            colunas_dados = table_data.columns[1:]
+            categoria:list = []
+            coluna_dados:list = []
+            categoria = table_data.columns[0] if anexos.tipoGrafico != 'tabela' else []
+            colunas_dados = table_data.columns[1:] if anexos.tipoGrafico != 'tabela' else table_data.columns[0:]
             dados = []
 
             for coluna in table_data[colunas_dados]:
                 dados_grafico = []
                 for value in table_data[coluna]:
-                    if type(value) == str:
+                    if type(value) == str and anexos.tipoGrafico != 'tabela':
                         if value == '' or re.match(r'^[a-zA-Z]+$', value):
                             dados_grafico.append(0)
                         else:
@@ -83,6 +84,7 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
                 dados=dados,
                 colunas=colunas_dados,
                 categoria=table_data[categoria],
+                # posicao=anexos.posicao[0].posicao
             )
 
             response.graficos.append(grafico_data)
@@ -108,7 +110,8 @@ async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, sess
             tituloGrafico=anexos.tituloGrafico,
             descricaoGrafico=anexos.descricaoGrafico,
             tipoGrafico=anexos.tipoGrafico,
-            path=anexos.path
+            path=anexos.path,
+            # posicao=anexos.posicao[0].posicao
         ))
 
     return response
@@ -117,6 +120,7 @@ async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, sess
 async def admin_post_indicador(
     dimensaoNome: str,
     indicadorNome: indicador_schema.IndicadorSchema,
+    # position: int,
     session: Session = Depends(get_db)):
 
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
@@ -125,23 +129,36 @@ async def admin_post_indicador(
     session.commit()
     session.refresh(new_indicador)
 
+    # new_indicador_posicao = posicao.Posicao(posicao=position, fkIndicador_id=new_indicador.id, fkAnexo_id=None)
+    # session.add(new_indicador_posicao)
+    # session.commit()
+    # session.refresh(new_indicador_posicao)
+
     return
 
-@indicadorRouter.put("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/")
+@indicadorRouter.patch("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/")
 async def admin_update_indicador(
     dimensaoNome: str,
     indicadorNome: str,
-    indicadorNovo: str,
+    indicadorNovo: Annotated[str | None, Form()] = None,
+    posicaoNovo: Annotated[int | None, Form()] = None,
     session: Session = Depends(get_db)):
 
     # Busca o ID da dimensão
-    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    #dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
 
     # Busca o indicador existente
     existing_indicador = session.scalar(select(indicador.Indicador).where(
         and_(
             indicador.Indicador.nome == indicadorNome,
-            indicador.Indicador.fkDimensao_id == dimensao_id
+            indicador.Indicador.id == indicador_id
+        )
+    ))
+
+    existing_posicao = session.scalar(select(posicao.Posicao).where(
+        and_(
+            posicao.Posicao.fkIndicador_id == indicador_id,
         )
     ))
 
@@ -152,13 +169,25 @@ async def admin_update_indicador(
             detail=f"Indicador '{indicadorNome}' não encontrado na dimensão '{dimensaoNome}'"
         )
 
+    if not existing_posicao:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Posição do indicador '{indicadorNome}' não encontrada na dimensão"
+        )
+
     # Atualiza os dados do indicador
-    existing_indicador.nome = indicadorNovo
+    if(indicadorNovo != None):
+        existing_indicador.nome = indicadorNovo
+
+    if(posicaoNovo != None):
+        existing_posicao.posicao = posicaoNovo
+
     # Atualize outros campos conforme necessário
 
     # Salva as alterações
     session.commit()
     session.refresh(existing_indicador)
+    session.refresh(existing_posicao)
 
     return
 
@@ -170,6 +199,7 @@ async def admin_post_anexo_indicador(dimensaoNome: str,
                                     descricaoGrafico: Annotated[str, Form()],
                                     tipoGrafico: Annotated[str, Form()],
                                     tituloGrafico: Annotated[str, Form()],
+                                    posicaoGrafico: Annotated[str, Form()],
                                     session: Session = Depends(get_db)):
 
     indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
@@ -183,6 +213,7 @@ async def admin_post_anexo_indicador(dimensaoNome: str,
             secret_key="minioadmin",  # Default secret key or your configured one
             secure=False  # Set to True if you have SSL configured
         )
+
         new_anexo_indicador = anexo.Anexo(fkIndicador_id= indicador_id,
                                         fkKml_id=None,
                                         fkContribuicao_id=None,
@@ -201,8 +232,25 @@ async def admin_post_anexo_indicador(dimensaoNome: str,
         )
     try:
         session.add(new_anexo_indicador)
+        session.flush()
+        
+        posicao_anexo = session.scalar(select(posicao.Posicao).where(
+            posicao.Posicao.fkIndicador_id == indicador_id, posicao.Posicao.posicao == posicaoGrafico
+        ))
+        print(f"posicao_anexo = {posicao_anexo}\nposicaoGrafico = {posicaoGrafico}")
+        if not posicao_anexo:
+            posicao_anexo = posicao.Posicao(
+                posicao=posicaoGrafico,
+                fkIndicador_id=indicador_id,
+                fkAnexo_id=new_anexo_indicador.id
+            )
+        else:
+            posicao_anexo.anexo = new_anexo_indicador
+        session.add(posicao_anexo)
         session.commit()
         session.refresh(new_anexo_indicador)
+        session.refresh(posicao_anexo)
+        
     except Exception as error:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
@@ -219,6 +267,7 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
                                 descricaoGrafico: Annotated[Optional[str], Form()] = '',
                                 tipoGrafico: Annotated[Optional[str], Form()] = '',
                                 tituloGrafico: Annotated[Optional[str], Form()] = '',
+                                posicaoGrafico: Annotated[Optional[str], Form()] = '',
                                 session: Session = Depends(get_db)):
 
     # Get dimension and indicator IDs
@@ -248,6 +297,36 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
     #if tituloGrafico is not None:void (arrayGrafico[i].arquivo instanceof File ? formData.append('grafico', arrayGrafico[i].arquivo) : null)
     if tituloGrafico != existing_anexo.tituloGrafico:
         existing_anexo.tituloGrafico = tituloGrafico
+    
+    lista_posicao = list(existing_anexo.posicao)
+    print(lista_posicao)
+    print(posicaoGrafico)
+    
+    if posicaoGrafico != lista_posicao[0].posicao if lista_posicao else None:
+        existing_posicao = session.scalar(select(posicao.Posicao).where(
+            posicao.Posicao.fkIndicador_id == indicador_id, posicao.Posicao.posicao == posicaoGrafico
+        ))
+        print(f"titulo grafico = {tituloGrafico}")
+        print(f"posicao_grafico_nova = {posicaoGrafico}")
+        print(f"posicao_grafico_antiga = {existing_anexo.posicao[0].posicao}")
+        print(f"existing_anexo.id = {existing_anexo.id}")
+
+        if not existing_posicao:
+            existing_posicao = posicao.Posicao(
+                posicao=posicaoGrafico,
+                fkIndicador_id=indicador_id,
+                fkAnexo_id=existing_anexo.id
+            )
+            session.add(existing_posicao)
+            session.flush(existing_posicao)
+        
+        # existing_anexo.posicao = None
+        existing_anexo.posicao = []
+        # existing_posicao.fkAnexo_id = existing_anexo.id
+        existing_anexo.posicao.append(existing_posicao)
+        # print(f"existing_anexo.posicao = {existing_anexo.posicao[0].posicao if len(existing_anexo.posicao) >= 0 else None }")
+        session.add(existing_posicao)
+        session.refresh(existing_posicao)
 
     # Handle file upload if provided
     #if grafico.filename != existing_anexo.path:
@@ -276,10 +355,56 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
     # Save changes
     session.commit()
     session.refresh(existing_anexo)
-
+    
     # Return updated data
     return await admin_get_indicador_detail(dimensaoNome, indicadorNome, session)
 
+@indicadorRouter.delete("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/anexos/{idAnexo}/")
+async def admin_delete_indicador_anexo(
+    dimensaoNome: str,
+    indicadorNome: str,
+    idAnexo: int,
+    session: Session = Depends(get_db)
+):
+    # Get dimension and indicator IDs (optional, for validation)
+    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+    indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
+
+    # Find the existing anexo by ID
+    existing_anexo = session.scalar(select(anexo.Anexo).where(
+        anexo.Anexo.id == idAnexo
+    ))
+    print(existing_anexo)
+    if not existing_anexo:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Anexo com ID {idAnexo} não encontrado"
+        )
+
+    # Delete the file from Minio storage
+    try:
+        client = Minio(
+            endpoint="barcarena-minio:9000",
+            access_key="minioadmin",
+            secret_key="minioadmin",
+            secure=False
+        )
+        client.remove_object("anexos-barcarena", existing_anexo.path)
+    except Exception as e:
+        # Log the error but continue with database deletion
+        print(f"Error deleting file from Minio: {e}")
+        pass
+        # You might want to handle this differently based on your requirements
+        # For example, you could raise an exception if file deletion fails
+
+    # Delete the anexo record from database
+    session.delete(existing_anexo)
+    session.commit()
+
+    return {
+        "message": f"Anexo com ID {idAnexo} deletado com sucesso",
+        "deleted_anexo_id": idAnexo
+    }
 
 @indicadorRouter.delete("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", status_code=HTTPStatus.NO_CONTENT)
 async def admin_delete_indicador(
@@ -310,25 +435,22 @@ async def admin_delete_indicador(
 @indicadorRouter.delete("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/anexos/{idAnexo}/")
 async def adim_delete_anexo_indicador(idAnexo: str,
                                       session: Session = Depends(get_db)
-                                      ) -> None: 
+                                      ) -> None:
     anexo_id = idAnexo
-    
+
     db_anexo = session.scalar(
         select(anexo.Anexo).where(
             anexo.Anexo.id == anexo_id
         )
     )
-    
+
     if not db_anexo:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail="Anexo não encontrado"
         )
-        
+
     session.delete(db_anexo)
     session.commit()
-    
+
     return
-    
-    
-    
