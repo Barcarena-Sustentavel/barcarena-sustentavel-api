@@ -84,7 +84,7 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
                 dados=dados,
                 colunas=colunas_dados,
                 categoria=table_data[categoria],
-                # posicao=anexos.posicao[0].posicao
+                posicao=anexos.posicao[0].posicao if anexos.posicao else -1
             )
 
             response.graficos.append(grafico_data)
