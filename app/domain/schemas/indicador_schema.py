@@ -29,6 +29,7 @@ class DadosGrafico(BaseModel):
     dados: List[List[int | float | str]]
     colunas: List[str]
     categoria: List[int | float | str]
+    posicao: Optional[int]
 
 class IndicadorGraficos(IndicadorSchema):
     graficos: List[DadosGrafico]

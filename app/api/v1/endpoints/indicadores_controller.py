@@ -84,7 +84,7 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
                 dados=dados,
                 colunas=colunas_dados,
                 categoria=table_data[categoria],
-                # posicao=anexos.posicao[0].posicao
+                posicao=anexos.posicao[0].posicao if anexos.posicao else -1
             )
 
             response.graficos.append(grafico_data)
@@ -111,7 +111,7 @@ async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, sess
             descricaoGrafico=anexos.descricaoGrafico,
             tipoGrafico=anexos.tipoGrafico,
             path=anexos.path,
-            # posicao=anexos.posicao[0].posicao
+            posicaoGrafico=anexos.posicao[0].posicao if anexos.posicao else 0 
         ))
 
     return response
@@ -329,16 +329,14 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
         existing_anexo.tituloGrafico = tituloGrafico
     
     lista_posicao = list(existing_anexo.posicao)
-    print(lista_posicao)
-    print(posicaoGrafico)
     
-    if posicaoGrafico != lista_posicao[0].posicao if lista_posicao else None:
+    if posicaoGrafico != (lista_posicao[0].posicao if lista_posicao else None):
         existing_posicao = session.scalar(select(posicao.Posicao).where(
             posicao.Posicao.fkIndicador_id == indicador_id, posicao.Posicao.posicao == posicaoGrafico
         ))
         print(f"titulo grafico = {tituloGrafico}")
         print(f"posicao_grafico_nova = {posicaoGrafico}")
-        print(f"posicao_grafico_antiga = {existing_anexo.posicao[0].posicao}")
+        print(f"posicao_grafico_antiga = {existing_anexo.posicao[0].posicao if existing_anexo.posicao else None}")
         print(f"existing_anexo.id = {existing_anexo.id}")
 
         if not existing_posicao:
