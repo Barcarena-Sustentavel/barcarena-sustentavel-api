@@ -36,7 +36,7 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
     response:indicador_schema.IndicadorGraficos = indicador_schema.IndicadorGraficos(nome=indicadorDimensao.nome, graficos=[])
     for anexos in anexoIndicador.all():
         path = ""
-        if dimensao_id == 80:
+        if dimensao_id == 86:
             print(f"anexos.path:{anexos.path}")
             regex = re.search(r'/([^/]+\.csv)$', anexos.path, re.IGNORECASE)
             print(f"regex:{regex}")
