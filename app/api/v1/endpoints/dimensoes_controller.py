@@ -12,6 +12,7 @@ from app.core.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Any, Annotated, Optional
+from minio.commonconfig import CopySource
 from .aux.get_model_id import get_model_id
 from minio import Minio
 import base64
@@ -160,6 +161,38 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
 
     if dimensao_data.descricao != update_dimensao.descricao and update_dimensao.descricao != "":
         dimensao_data.descricao = update_dimensao.descricao
+
+    client = Minio(
+        "barcarena-minio:9000",
+        access_key="minioadmin",
+        secret_key="minioadmin",
+        secure=False
+    )
+
+    bucket_name = "anexos-barcarena"
+    objects_to_move = client.list_objects(bucket_name, prefix=dimensaoNome, recursive=True)
+
+    for obj in objects_to_move:
+            old_object_name = obj.object_name
+            new_object_name = old_object_name.replace(dimensaoNome, update_dimensao.nome, 1)
+
+            print(f"Antigo objeto: {old_object_name}")
+            print(f"Novo objeto: {new_object_name}")
+            source = CopySource(bucket_name, old_object_name)
+            client.copy_object(
+                bucket_name,
+                new_object_name,
+                source
+                #old_object_name
+            )
+            print(f"Copied '{old_object_name}' to '{new_object_name}'")
+
+            # Remove the old object
+            client.remove_object(bucket_name, old_object_name)
+            print(f"Removed '{old_object_name}'")
+
+            print(f"Successfully renamed '{old_object_name}' to '{new_object_name}' in bucket '{bucket_name}'.")
+
 
     session.commit()
     session.refresh(dimensao_data)

@@ -41,7 +41,8 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
         path = f"{dimensaoNome}/{indicadorNome}/{regex.group(1)}"
         print(f"path:{path}")
         try:
-            responseDados = client.get_object("anexos-barcarena", anexos.path)
+            #responseDados = client.get_object("anexos-barcarena", anexos.path)
+            responseDados = client.get_object("anexos-barcarena", path)
             csv_data = None
             data_bytes = responseDados.read()
             # Convert bytes to string and parse as CSV
