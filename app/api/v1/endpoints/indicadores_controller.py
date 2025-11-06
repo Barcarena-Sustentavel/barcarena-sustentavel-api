@@ -35,6 +35,7 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
 
     response:indicador_schema.IndicadorGraficos = indicador_schema.IndicadorGraficos(nome=indicadorDimensao.nome, graficos=[])
     for anexos in anexoIndicador.all():
+        print(anexos.path)
         try:
             responseDados = client.get_object("anexos-barcarena", anexos.path)
             csv_data = None
