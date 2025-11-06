@@ -228,10 +228,12 @@ def checarListaVazia(lista_all:list, lista_json:list, inserirPosicao:bool, sessi
             if(inserirPosicao):
                 if isinstance(element, indicador.Indicador):
                     posicao = session.query(Posicao).filter(Posicao.fkIndicador_id == element.id).first()
-                    json_element["posicao"] = posicao.posicao
+                    if posicao is not None:
+                        json_element["posicao"] = posicao.posicao
                 elif isinstance(element, Anexo):
                     posicao = session.query(Posicao).filter(Posicao.fkAnexo_id == element.id).first()
-                    json_element["posicao"] = posicao.posicao
+                    if posicao is not None:
+                        json_element["posicao"] = posicao.posicao
             else:
                 json_element["posicao"] = None
             lista_json.append(json_element)
@@ -239,7 +241,7 @@ def checarListaVazia(lista_all:list, lista_json:list, inserirPosicao:bool, sessi
 @dimensaoRouter.post("/admin/dimensoes/{dimensaoNome}/estudo_complementar/", status_code=HTTPStatus.CREATED)
 async def create_estudo_complementar(
     dimensaoNome: str,
-    name: Annotated[str, Form()],
+    nome: Annotated[str, Form()],
     pdf: UploadFile = File(...),
     session: Session = Depends(get_db),
     status_code=HTTPStatus.CREATED
@@ -266,7 +268,7 @@ async def create_estudo_complementar(
         )
 
         new_estudo_complementar = estudoComplementar.EstudoComplementar(
-            name=name,
+            nome=nome,
             fkDimensao_id=dimensao_id,
         )
 
@@ -282,7 +284,7 @@ async def create_estudo_complementar(
             tipoGrafico=None,
             tituloGrafico=None
         )
-
+        print("conflito")
         new_estudo_complementar.anexos.append(new_anexo_estudo_complementar)
 
         # Adiciona no banco mas só commita no final
@@ -326,7 +328,7 @@ async def get_estudos_complementares_by_dimensao(
 @dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudoComplementarNome}/path/")
 async def get_estudo_complementar_path(
     dimensaoNome: str,
-    name: str,
+    nome: str,
     session: Session = Depends(get_db)
 ):
     # Busca a dimensão
@@ -337,7 +339,7 @@ async def get_estudo_complementar_path(
         session.query(estudoComplementar.EstudoComplementar)
         .filter(
             estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
-            estudoComplementar.EstudoComplementar.nome == name
+            estudoComplementar.EstudoComplementar.nome == nome
         )
         .first()
     )
@@ -345,11 +347,11 @@ async def get_estudo_complementar_path(
     if not estudo:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail=f"Estudo complementar '{name}' não encontrado para a dimensão '{dimensaoNome}'."
+            detail=f"Estudo complementar '{nome}' não encontrado para a dimensão '{dimensaoNome}'."
         )
 
     # Retorna o path no MinIO
-    return {"estudo": name, "path": estudo.anexos[0].path}
+    return {"estudo": nome, "path": estudo.anexos[0].path}
 
 @dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudoComplementarNome}/", status_code=HTTPStatus.CREATED)
 async def get_estudo_complementar(
@@ -375,7 +377,7 @@ async def get_estudo_complementar(
             status_code=HTTPStatus.NOT_FOUND,
             detail=f"Estudo complementar '{estudoComplementarNome}' não encontrado para a dimensão '{dimensaoNome}'."
         )
-
+    
     try:
         client = Minio(
             "barcarena-minio:9000",
@@ -474,7 +476,7 @@ async def patch_estudo_complementar(
         )
 
     try:
-        estudo.name = novo_nome
+        estudo.nome = novo_nome
         tamanho_pdf = len(await pdf.read())/1024 # pega tamanho em kilobytes
         print(f"Cursor position before seek(0): {pdf.file.tell()}")
         pdf.file.seek(0) # retorna cursor para a posição inicial
@@ -529,9 +531,9 @@ async def delete_estudo_complementar(
     if not estudo:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail=f"Estudo complementar não encontrado: {error}"
+            detail=f"Estudo complementar não encontrado: {estudo_complementar_nome}"
         )
-
+    print(estudo)
     try:
         client = Minio(
                 "barcarena-minio:9000",
@@ -539,7 +541,6 @@ async def delete_estudo_complementar(
                 secret_key="minioadmin",
                 secure=False
             )
-
         client.remove_object("anexos-barcarena", estudo.anexos[0].path)
     except Exception as error:
         session.rollback()
