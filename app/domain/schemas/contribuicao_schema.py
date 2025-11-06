@@ -7,7 +7,7 @@ class ContribuicaoSchema(BaseModel):
     email: Optional[str] 
     telefone: Optional[str] 
     comentario: str
-    path: Optional[str]
+    # path: Optional[str]
 
     class Config:
         from_atributes = True
