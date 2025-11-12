@@ -12,6 +12,7 @@ from app.core.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Any, Annotated, Optional
+from minio.commonconfig import CopySource
 from .aux.get_model_id import get_model_id
 from minio import Minio
 import base64
@@ -161,6 +162,38 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
     if dimensao_data.descricao != update_dimensao.descricao and update_dimensao.descricao != "":
         dimensao_data.descricao = update_dimensao.descricao
 
+    client = Minio(
+        "barcarena-minio:9000",
+        access_key="minioadmin",
+        secret_key="minioadmin",
+        secure=False
+    )
+
+    bucket_name = "anexos-barcarena"
+    objects_to_move = client.list_objects(bucket_name, prefix=dimensaoNome, recursive=True)
+
+    for obj in objects_to_move:
+            old_object_name = obj.object_name
+            new_object_name = old_object_name.replace(dimensaoNome, update_dimensao.nome, 1)
+
+            print(f"Antigo objeto: {old_object_name}")
+            print(f"Novo objeto: {new_object_name}")
+            source = CopySource(bucket_name, old_object_name)
+            client.copy_object(
+                bucket_name,
+                new_object_name,
+                source
+                #old_object_name
+            )
+            print(f"Copied '{old_object_name}' to '{new_object_name}'")
+
+            # Remove the old object
+            client.remove_object(bucket_name, old_object_name)
+            print(f"Removed '{old_object_name}'")
+
+            print(f"Successfully renamed '{old_object_name}' to '{new_object_name}' in bucket '{bucket_name}'.")
+
+
     session.commit()
     session.refresh(dimensao_data)
 
@@ -228,10 +261,12 @@ def checarListaVazia(lista_all:list, lista_json:list, inserirPosicao:bool, sessi
             if(inserirPosicao):
                 if isinstance(element, indicador.Indicador):
                     posicao = session.query(Posicao).filter(Posicao.fkIndicador_id == element.id).first()
-                    json_element["posicao"] = posicao.posicao
+                    if posicao is not None:
+                        json_element["posicao"] = posicao.posicao
                 elif isinstance(element, Anexo):
                     posicao = session.query(Posicao).filter(Posicao.fkAnexo_id == element.id).first()
-                    json_element["posicao"] = posicao.posicao
+                    if posicao is not None:
+                        json_element["posicao"] = posicao.posicao
             else:
                 json_element["posicao"] = None
             lista_json.append(json_element)
@@ -239,7 +274,7 @@ def checarListaVazia(lista_all:list, lista_json:list, inserirPosicao:bool, sessi
 @dimensaoRouter.post("/admin/dimensoes/{dimensaoNome}/estudo_complementar/", status_code=HTTPStatus.CREATED)
 async def create_estudo_complementar(
     dimensaoNome: str,
-    name: Annotated[str, Form()],
+    nome: Annotated[str, Form()],
     pdf: UploadFile = File(...),
     session: Session = Depends(get_db),
     status_code=HTTPStatus.CREATED
@@ -266,7 +301,7 @@ async def create_estudo_complementar(
         )
 
         new_estudo_complementar = estudoComplementar.EstudoComplementar(
-            name=name,
+            nome=nome,
             fkDimensao_id=dimensao_id,
         )
 
@@ -282,7 +317,7 @@ async def create_estudo_complementar(
             tipoGrafico=None,
             tituloGrafico=None
         )
-
+        print("conflito")
         new_estudo_complementar.anexos.append(new_anexo_estudo_complementar)
 
         # Adiciona no banco mas só commita no final
@@ -326,7 +361,7 @@ async def get_estudos_complementares_by_dimensao(
 @dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudoComplementarNome}/path/")
 async def get_estudo_complementar_path(
     dimensaoNome: str,
-    name: str,
+    nome: str,
     session: Session = Depends(get_db)
 ):
     # Busca a dimensão
@@ -337,7 +372,7 @@ async def get_estudo_complementar_path(
         session.query(estudoComplementar.EstudoComplementar)
         .filter(
             estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
-            estudoComplementar.EstudoComplementar.nome == name
+            estudoComplementar.EstudoComplementar.nome == nome
         )
         .first()
     )
@@ -345,11 +380,11 @@ async def get_estudo_complementar_path(
     if not estudo:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail=f"Estudo complementar '{name}' não encontrado para a dimensão '{dimensaoNome}'."
+            detail=f"Estudo complementar '{nome}' não encontrado para a dimensão '{dimensaoNome}'."
         )
 
     # Retorna o path no MinIO
-    return {"estudo": name, "path": estudo.anexos[0].path}
+    return {"estudo": nome, "path": estudo.anexos[0].path}
 
 @dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudoComplementarNome}/", status_code=HTTPStatus.CREATED)
 async def get_estudo_complementar(
@@ -375,7 +410,7 @@ async def get_estudo_complementar(
             status_code=HTTPStatus.NOT_FOUND,
             detail=f"Estudo complementar '{estudoComplementarNome}' não encontrado para a dimensão '{dimensaoNome}'."
         )
-
+    
     try:
         client = Minio(
             "barcarena-minio:9000",
@@ -474,7 +509,7 @@ async def patch_estudo_complementar(
         )
 
     try:
-        estudo.name = novo_nome
+        estudo.nome = novo_nome
         tamanho_pdf = len(await pdf.read())/1024 # pega tamanho em kilobytes
         print(f"Cursor position before seek(0): {pdf.file.tell()}")
         pdf.file.seek(0) # retorna cursor para a posição inicial
@@ -529,9 +564,9 @@ async def delete_estudo_complementar(
     if not estudo:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail=f"Estudo complementar não encontrado: {error}"
+            detail=f"Estudo complementar não encontrado: {estudo_complementar_nome}"
         )
-
+    print(estudo)
     try:
         client = Minio(
                 "barcarena-minio:9000",
@@ -539,7 +574,6 @@ async def delete_estudo_complementar(
                 secret_key="minioadmin",
                 secure=False
             )
-
         client.remove_object("anexos-barcarena", estudo.anexos[0].path)
     except Exception as error:
         session.rollback()

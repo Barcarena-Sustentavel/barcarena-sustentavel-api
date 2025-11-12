@@ -35,9 +35,18 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
 
     response:indicador_schema.IndicadorGraficos = indicador_schema.IndicadorGraficos(nome=indicadorDimensao.nome, graficos=[])
     for anexos in anexoIndicador.all():
-        print(anexos.path)
+        path = ""
+        if dimensao_id == 86:
+            print(f"anexos.path:{anexos.path}")
+            regex = re.search(r'/([^/]+\.csv)$', anexos.path, re.IGNORECASE)
+            print(f"regex:{regex}")
+            path = f"{dimensaoNome}/{indicadorNome}/{regex.group(1)}"
+            print(f"path:{path}")
+        else: 
+            path = anexos.path
         try:
-            responseDados = client.get_object("anexos-barcarena", anexos.path)
+            #responseDados = client.get_object("anexos-barcarena", anexos.path)
+            responseDados = client.get_object("anexos-barcarena", path)
             csv_data = None
             data_bytes = responseDados.read()
             # Convert bytes to string and parse as CSV
@@ -134,8 +143,13 @@ async def admin_post_indicador(
     )).all()
 
     ultima_posicao = session.scalar(select(func.max(posicao.Posicao.posicao)).where(posicao.Posicao.fkIndicador_id.in_([ind.id for ind in indicadores_dimensao])))
-
-    new_indicador_posicao = posicao.Posicao(posicao= ultima_posicao + 1,fkIndicador_id=new_indicador.id, fkAnexo_id=None)
+    print(ultima_posicao)
+    if ultima_posicao == None:
+        ultima_posicao = 0
+    else:
+        ultima_posicao += 1
+    print(f"ultima_posicao = {ultima_posicao}")
+    new_indicador_posicao = posicao.Posicao(posicao= ultima_posicao,fkIndicador_id=new_indicador.id, fkAnexo_id=None)
     session.add(new_indicador_posicao)
     session.commit()
     session.refresh(new_indicador_posicao)
