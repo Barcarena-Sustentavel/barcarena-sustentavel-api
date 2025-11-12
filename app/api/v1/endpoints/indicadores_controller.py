@@ -36,21 +36,17 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
     response:indicador_schema.IndicadorGraficos = indicador_schema.IndicadorGraficos(nome=indicadorDimensao.nome, graficos=[])
     for anexos in anexoIndicador.all():
         path = ""
-        if dimensao_id == 86:
-            print(f"anexos.path:{anexos.path}")
-            regex = re.search(r'/([^/]+\.csv)$', anexos.path, re.IGNORECASE)
-            print(f"regex:{regex}")
-            path = f"{dimensaoNome}/{indicadorNome}/{regex.group(1)}"
-            print(f"path:{path}")
-        else: 
-            path = anexos.path
+        print(f"anexos.path:{anexos.path}")
+        regex = re.search(r'/([^/]+\.csv)$', anexos.path, re.IGNORECASE)
+        print(f"regex:{regex}")
+        path = f"{dimensaoNome}/{indicadorNome}/{regex.group(1)}"
+        print(f"path:{path}")
         try:
             #responseDados = client.get_object("anexos-barcarena", anexos.path)
             responseDados = client.get_object("anexos-barcarena", path)
             csv_data = None
             data_bytes = responseDados.read()
             # Convert bytes to string and parse as CSV
-            print(data_bytes)
             decodings = ["utf-8","utf-8-sig", "iso-8859-1", "latin1", "cp1252"]
             for dec in decodings:
                 try:
