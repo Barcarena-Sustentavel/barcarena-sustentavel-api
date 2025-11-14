@@ -9,6 +9,7 @@ from http import HTTPStatus
 from minio import Minio
 from typing import Annotated, Optional
 from fastapi import UploadFile, Form
+from minio.commonconfig import CopySource
 from minio import Minio
 import csv
 import io
@@ -63,6 +64,7 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
             csv_reader = csv.reader(csv_data)
             # Convert CSV data to the format needed for your response
             rows = list(csv_reader)
+            print(rows)
             table_data = pd.DataFrame(rows[1:], columns=rows[0])
             categoria:list = []
             coluna_dados:list = []
@@ -182,6 +184,40 @@ async def admin_update_indicador(
     # Atualiza os dados do indicador
     if(indicadorNovo != None):
         existing_indicador.nome = indicadorNovo
+        for pos in range(len(existing_indicador.anexos)):
+            path = existing_indicador.anexos[pos].path
+            re_path = re.sub(rf"/{indicadorNome}/", f'/{indicadorNovo}/',path)
+            existing_indicador.anexos[pos].path = re_path
+        client = Minio(
+        "barcarena-minio:9000",
+        access_key="minioadmin",
+        secret_key="minioadmin",
+        secure=False
+    )
+
+        bucket_name = "anexos-barcarena"
+        objects_to_move = client.list_objects(bucket_name, prefix=f"{dimensaoNome}/{indicadorNome}", recursive=True)
+
+        for obj in objects_to_move:
+                old_object_name = obj.object_name
+                new_object_name = old_object_name.replace(dimensaoNome, indicadorNovo, 1)
+
+                print(f"Antigo objeto: {old_object_name}")
+                print(f"Novo objeto: {new_object_name}")
+                source = CopySource(bucket_name, old_object_name)
+                client.copy_object(
+                    bucket_name,
+                    new_object_name,
+                    source
+                    #old_object_name
+                )
+                print(f"Copied '{old_object_name}' to '{new_object_name}'")
+
+                # Remove the old object
+                client.remove_object(bucket_name, old_object_name)
+                print(f"Removed '{old_object_name}'")
+
+                print(f"Successfully renamed '{old_object_name}' to '{new_object_name}' in bucket '{bucket_name}'.")
 
 
     # Atualize outros campos conforme necessário
@@ -372,6 +408,7 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
 
     # Handle file upload if provided
     #if grafico.filename != existing_anexo.path:
+    print(grafico)
     if grafico is not None:
         client = Minio(
             endpoint="barcarena-minio:9000",

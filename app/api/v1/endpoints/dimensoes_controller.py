@@ -17,6 +17,7 @@ from .aux.get_model_id import get_model_id
 from minio import Minio
 import base64
 import os
+import re
 
 
 dimensaoRouter = APIRouter()
@@ -152,27 +153,28 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
     dimensao_data = session.scalar(select(dimensao.Dimensao).where(
         dimensao.Dimensao.nome == dimensaoNome
     ))
-
+    
     if not dimensao_data:
         raise HTTPException(status_code=404, detail="Dimensão não encontrada")
 
     if dimensao_data.nome != update_dimensao.nome and update_dimensao.nome != "":
         dimensao_data.nome = update_dimensao.nome
+        client = Minio(
+            "barcarena-minio:9000",
+            access_key="minioadmin",
+            secret_key="minioadmin",
+            secure=False
+        )
+        #for anexo in dimensao_data.anexos:
+        for pos in range(len(dimensao_data.anexos)):
+            path = dimensao_data.anexos[pos].path
+            re_path = re.sub(rf"^{dimensaoNome}", update_dimensao.nome,path)
+            dimensao_data.anexos[pos].path = re_path
 
-    if dimensao_data.descricao != update_dimensao.descricao and update_dimensao.descricao != "":
-        dimensao_data.descricao = update_dimensao.descricao
+        bucket_name = "anexos-barcarena"
+        objects_to_move = client.list_objects(bucket_name, prefix=dimensaoNome, recursive=True)
 
-    client = Minio(
-        "barcarena-minio:9000",
-        access_key="minioadmin",
-        secret_key="minioadmin",
-        secure=False
-    )
-
-    bucket_name = "anexos-barcarena"
-    objects_to_move = client.list_objects(bucket_name, prefix=dimensaoNome, recursive=True)
-
-    for obj in objects_to_move:
+        for obj in objects_to_move:
             old_object_name = obj.object_name
             new_object_name = old_object_name.replace(dimensaoNome, update_dimensao.nome, 1)
 
@@ -192,6 +194,11 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
             print(f"Removed '{old_object_name}'")
 
             print(f"Successfully renamed '{old_object_name}' to '{new_object_name}' in bucket '{bucket_name}'.")
+
+    if dimensao_data.descricao != update_dimensao.descricao and update_dimensao.descricao != "":
+        dimensao_data.descricao = update_dimensao.descricao
+
+   
 
 
     session.commit()
