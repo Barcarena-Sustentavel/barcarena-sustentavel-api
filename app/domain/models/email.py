@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from app.domain.models.base import Base
 
-class User(Base):
+class Email(Base):
     __tablename__ = "Email"
     __table_args__ = {"schema": "barcarena_sustentavel"}
 

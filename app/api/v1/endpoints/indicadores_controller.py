@@ -99,6 +99,9 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
             )
 
             response.graficos.append(grafico_data)
+        except Exception as e:
+            print(f"Houve um erro no gráfico {anexos.path}")
+            print(f"Erro: {e}")
         finally:
             responseDados.close()
             responseDados.release_conn()

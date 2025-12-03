@@ -1,12 +1,12 @@
-from fastapi import APIRouter,Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
+from fastapi import APIRouter,Depends, HTTPException, UploadFile, File, Form, BackgroundTasks, Form
 from app.domain.schemas import contribuicao_schema
-from app.domain.models import contribuicao, dimensao
+from app.domain.models import contribuicao, dimensao, email as emailModel
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.core.database import get_db
 from http import HTTPStatus
 from .aux.get_model_id import get_model_id
-from typing import List
+from typing import List, Annotated
 import smtplib
 # from email.mime.text import MIMEText
 from email.message import EmailMessage
@@ -78,17 +78,20 @@ async def post_contribuicao(background: BackgroundTasks,
         arquivo_mime_type = file.content_type or None
         arquivo_dados = await file.read()
     
+    email_destinatario = session.scalars(select(emailModel.Email)).first().email
+
     
     background.add_task(
         enviar_email,
         dimensaoNome=dimensaoNome,
         nome=nome,
         email=email,
+        email_destinatario=email_destinatario,
         telefone=telefone,
         comentario=comentario,
         arquivo_nome=arquivo_nome,
         arquivo_dados=arquivo_dados,
-        arquivo_mime_type=arquivo_mime_type
+        arquivo_mime_type=arquivo_mime_type,
     )
 
     # response_contribuicao = contribuicao_schema.ContribuicaoSchema(nome=contribuicao_post.nome,comentario=contribuicao_post.comentario,email=contribuicao_post.email,telefone=contribuicao_post.telefone)
@@ -97,14 +100,16 @@ async def post_contribuicao(background: BackgroundTasks,
     
     return response_contribuicao   
 
-async def enviar_email(dimensaoNome: str, 
+async def enviar_email(
+    dimensaoNome: str, 
     nome: str, 
-    email: str, 
+    email: str,
+    email_destinatario: str, 
     telefone: str, 
     comentario: str, 
     arquivo_nome: str = None,
     arquivo_dados: bytes = None,
-    arquivo_mime_type: str = None):
+    arquivo_mime_type: str = None,):
     
     corpo_mail = f"""
     Nova contribuição recebida:
@@ -117,7 +122,7 @@ async def enviar_email(dimensaoNome: str,
     mensagem = EmailMessage()
     mensagem['Subject'] = f"Nova Contribuição Recebida - Dimensão {dimensaoNome}"
     mensagem['From'] = "barcarena.sustentavel.contrib@gmail.com"
-    mensagem['To'] = config("EMAIL_SERVICE_DESTINATARIO")
+    mensagem['To'] = email_destinatario
     mensagem.set_content(corpo_mail)
     
     if arquivo_dados and arquivo_nome:
@@ -157,4 +162,29 @@ async def delete_contribuicao(dimensaoNome:str, comentarioPublicacao: str,sessio
 
     return
 
-# @contribuicaoRouter.get("admin/email_contribuicao")
+@contribuicaoRouter.get("/admin/email_contribuicao")
+async def get_email_contribuicao(session: Session = Depends(get_db), status_code=HTTPStatus.OK):
+    email_contribuicao_atual = session.scalars(select(emailModel.Email)).first()
+    
+    return {"email_contribuicao": email_contribuicao_atual}
+
+@contribuicaoRouter.patch("/admin/email_contribuicao")
+async def patch_email_contribuicao(email: Annotated[str, Form()], session: Session = Depends(get_db), status_code=HTTPStatus.OK):
+    email_contribuicao_atual = session.scalars(select(emailModel.Email)).first()
+    
+    email_contribuicao_atual.email = email
+    
+    session.commit()
+    
+    return status_code
+
+@contribuicaoRouter.post("/admin/email_contribuicao")
+async def post_email_contriubicao(email: Annotated[str, Form()], session: Session = Depends(get_db), status_code=HTTPStatus.OK):
+    novo_email = emailModel.Email(email=email)
+    
+    session.add(novo_email)
+    session.commit()
+    
+    
+    return status_code
+    
