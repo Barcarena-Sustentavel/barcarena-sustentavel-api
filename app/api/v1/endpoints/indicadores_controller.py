@@ -27,7 +27,7 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
     ))
 
     client = Minio(
-        "barcarena-minio:9000",
+        "http://54.233.210.68:6001",
         access_key="minioadmin",
         secret_key="minioadmin",
         secure=False
@@ -252,7 +252,7 @@ async def admin_post_anexo_indicador(dimensaoNome: str,
     try:
         client = Minio(
             #endpoint="localhost:9000",  # Use the service name from docker-compose
-            endpoint="barcarena-minio:9000",  # Use the service name from docker-compose
+            endpoint="http://54.233.210.68:6001",  # Use the service name from docker-compose
             access_key="minioadmin",  # Default access key or your configured one
             secret_key="minioadmin",  # Default secret key or your configured one
             secure=False  # Set to True if you have SSL configured
@@ -374,7 +374,7 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
     #if grafico.filename != existing_anexo.path:
     if grafico is not None:
         client = Minio(
-            endpoint="barcarena-minio:9000",
+            endpoint="http://54.233.210.68:6001",
             access_key="minioadmin",
             secret_key="minioadmin",
             secure=False
@@ -426,7 +426,7 @@ async def admin_delete_indicador_anexo(
     # Delete the file from Minio storage
     try:
         client = Minio(
-            endpoint="barcarena-minio:9000",
+            endpoint="http://54.233.210.68:6001",
             access_key="minioadmin",
             secret_key="minioadmin",
             secure=False
