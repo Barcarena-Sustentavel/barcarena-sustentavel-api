@@ -28,3 +28,9 @@
 2025-12-02 21:30:32,074 - urllib3.connectionpool - DEBUG - Starting new HTTP connection (1): 54.233.210.68:6001
 2025-12-02 21:30:32,209 - urllib3.connectionpool - DEBUG - http://54.233.210.68:6001 "GET /anexos-barcarena?location= HTTP/1.1" 200 0
 2025-12-02 21:30:32,278 - urllib3.connectionpool - DEBUG - http://54.233.210.68:6001 "GET /anexos-barcarena/Conectividade/Conectividade%20nas%20Escolas%20-%202023/escolas.csv HTTP/1.1" 200 59397
+2025-12-02 22:11:57,931 - urllib3.connectionpool - DEBUG - Starting new HTTP connection (1): 54.233.210.68:6001
+2025-12-02 22:11:58,098 - urllib3.connectionpool - DEBUG - http://54.233.210.68:6001 "GET /anexos-barcarena?location= HTTP/1.1" 200 0
+2025-12-02 22:11:58,164 - urllib3.connectionpool - DEBUG - http://54.233.210.68:6001 "GET /anexos-barcarena/Conectividade/Conectividade%20na%20Sa%C3%BAde%20-%202025/saude.csv HTTP/1.1" 200 4586
+2025-12-02 22:11:58,669 - urllib3.connectionpool - DEBUG - Starting new HTTP connection (1): 54.233.210.68:6001
+2025-12-02 22:11:58,789 - urllib3.connectionpool - DEBUG - http://54.233.210.68:6001 "GET /anexos-barcarena?location= HTTP/1.1" 200 0
+2025-12-02 22:11:58,854 - urllib3.connectionpool - DEBUG - http://54.233.210.68:6001 "GET /anexos-barcarena/Conectividade/Conectividade%20na%20Sa%C3%BAde%20-%202025/saude.csv HTTP/1.1" 200 4586
