@@ -28,7 +28,7 @@ async def create_estudo_complementar(
 ):
     try:
         client = Minio(
-            endpoint="http://54.233.210.68:6001",  # Nome do serviço no docker-compose
+            endpoint="localhost:9000",  # Nome do serviço no docker-compose
             access_key="minioadmin",
             secret_key="minioadmin",
             secure=False
@@ -149,7 +149,7 @@ async def patch_estudo_complementar(
 
         if tamanho_pdf >= 1: # se pdf não for vazio substitui o anexo
             client = Minio(
-                "http://54.233.210.68:6001",
+                endpoint="localhost:9000",
                 access_key="minioadmin",
                 secret_key="minioadmin",
                 secure=False

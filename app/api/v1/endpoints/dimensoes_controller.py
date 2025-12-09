@@ -74,7 +74,7 @@ async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) ->
 @dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/artigoDimensao")
 def get_dimensao_artigo(dimensaoNome: str):
     client = Minio(
-        "http://54.233.210.68:6001",
+        endpoint="localhost:9000",
         access_key="minioadmin",
         secret_key="minioadmin",
         secure=False
@@ -102,7 +102,7 @@ def get_dimensao_artigo(dimensaoNome: str):
 
 async def save_artigo(dimensaoNome: str, file: UploadFile, patch: bool):
     client = Minio(
-        "http://54.233.210.68:6001",
+        endpoint="localhost:9000",
         access_key="minioadmin",
         secret_key="minioadmin",
         secure=False
@@ -224,7 +224,7 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     get_dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
 
     client = Minio(
-        "54.233.210.68:6001",
+        endpoint="localhost:9000",
         access_key="minioadmin",
         secret_key="minioadmin",
         secure=False
@@ -298,7 +298,7 @@ async def create_estudo_complementar(
 ):
     try:
         client = Minio(
-            endpoint="http://54.233.210.68:6001",  # Nome do serviço no docker-compose
+            endpoint="localhost:9000",  # Nome do serviço no docker-compose
             access_key="minioadmin",
             secret_key="minioadmin",
             secure=False
@@ -430,7 +430,7 @@ async def get_estudo_complementar(
     
     try:
         client = Minio(
-            "http://54.233.210.68:6001",
+            endpoint="localhost:9000",
             access_key="minioadmin",
             secret_key="minioadmin",
             secure=False
@@ -477,7 +477,7 @@ async def get_anexo_estudo_complementar(
 
     try:
         client = Minio(
-            "http://54.233.210.68:6001",
+            endpoint="localhost:9000",
             access_key="minioadmin",
             secret_key="minioadmin",
             secure=False
@@ -534,7 +534,7 @@ async def patch_estudo_complementar(
 
         if tamanho_pdf >= 1: # se pdf não for vazio substitui o anexo
             client = Minio(
-                "http://54.233.210.68:6001",
+                endpoint="localhost:9000",
                 access_key="minioadmin",
                 secret_key="minioadmin",
                 secure=False
@@ -586,7 +586,7 @@ async def delete_estudo_complementar(
     print(estudo)
     try:
         client = Minio(
-                "http://54.233.210.68:6001",
+                endpoint="localhost:9000",
                 access_key="minioadmin",
                 secret_key="minioadmin",
                 secure=False

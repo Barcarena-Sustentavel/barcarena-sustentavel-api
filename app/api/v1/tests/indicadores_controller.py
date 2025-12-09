@@ -291,7 +291,7 @@ async def admin_post_anexo_indicador(dimensaoNome: str,
     try:
         client = Minio(
             #endpoint="localhost:9000",  # Use the service name from docker-compose
-            endpoint="54.233.210.68:6001",  # Use the service name from docker-compose
+            endpoint="localhost:9000",  # Use the service name from docker-compose
             access_key="minioadmin",  # Default access key or your configured one
             secret_key="minioadmin",  # Default secret key or your configured one
             secure=False  # Set to True if you have SSL configured
@@ -414,7 +414,7 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
     print(grafico)
     if grafico is not None:
         client = Minio(
-            endpoint="54.233.210.68:6001",
+            endpoint="localhost:9000",
             access_key="minioadmin",
             secret_key="minioadmin",
             secure=False
@@ -466,7 +466,7 @@ async def admin_delete_indicador_anexo(
     # Delete the file from Minio storage
     try:
         client = Minio(
-            endpoint="54.233.210.68:6001",
+            endpoint="localhost:9000",
             access_key="minioadmin",
             secret_key="minioadmin",
             secure=False
