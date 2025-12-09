@@ -34,5 +34,9 @@ class DadosGrafico(BaseModel):
 class IndicadorGraficos(IndicadorSchema):
     graficos: List[DadosGrafico]
 
+class IndicadorTrocarPosicao(BaseModel):
+    nome:str
+    posicao:int
+
 class IndicadorUpdate(BaseModel):
     nome:str

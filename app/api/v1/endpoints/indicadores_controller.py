@@ -7,7 +7,7 @@ from .aux.get_model_id import get_model_id
 from app.core.database import get_db
 from http import HTTPStatus
 from minio import Minio
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
 from fastapi import UploadFile, Form
 from minio.commonconfig import CopySource
 from minio import Minio
@@ -232,95 +232,20 @@ async def admin_update_indicador(
     return
 @indicadorRouter.patch("/admin/dimensoes/{dimensaoNome}/indicador/trocar_posicao")
 async def admin_trocar_posicao_indicador(dimensaoNome: str,
-    indicador1: dict, 
-    indicador2: dict,
+    indicadores: List[indicador_schema.IndicadorTrocarPosicao],
     session: Session = Depends(get_db)):
-    indicador1_id = await get_model_id(indicador1["nome"], session, indicador.Indicador)
-    indicador2_id = await get_model_id(indicador2["nome"], session, indicador.Indicador)
-    # Query para buscar a posição do indicador1
-    posicao_indicador1 = session.scalar(
-        select(posicao.Posicao).where(
-            posicao.Posicao.fkIndicador_id == indicador1_id
-        )
-    )
-    #guardar_posicao1 = posicao_indicador1.posicao
+    indicadoresNomes = [indicador.nome for indicador in indicadores]
+    indicadoresIDs = [await get_model_id(indicadorNome, session, indicador.Indicador) for indicadorNome in indicadoresNomes]
+    posicao_indicadores_list = []
+    for id in indicadoresIDs:
+        inserirIndicador = session.scalar(select(posicao.Posicao).where(posicao.Posicao.fkIndicador_id == id))
+        posicao_indicadores_list.append(inserirIndicador)
 
-    # Query para buscar a posição do indicador2
-    posicao_indicador2 = session.scalar(
-        select(posicao.Posicao).where(
-            posicao.Posicao.fkIndicador_id == indicador2_id
-        )
-    )
-    nome_indicador1 = indicador1["nome"]
-    nome_indicador2 = indicador2["nome"]
-    print(f"posicao_indicador1: {nome_indicador1} {posicao_indicador1.posicao}")
-    print(f"posicao_indicador2: {nome_indicador2} {posicao_indicador2.posicao}")
-
-    if not posicao_indicador1:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail=f"Posição do indicador '{indicador1['nome']}' não encontrada"
-        )
-
-    if not posicao_indicador2:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail=f"Posição do indicador '{indicador2['nome']}' não encontrada"
-        )
-    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
-    indicadores = session.scalars(select(indicador.Indicador).where(
-        (indicador.Indicador.fkDimensao_id == dimensao_id) 
-    ))
-    indicadoresID = []
-    for id in indicadores.all():
-        if(id.id != indicador1_id and id.id != indicador2_id):
-            indicadoresID.append(id.id)
-    # Atualiza as posições
-    posicao_indicador1.posicao =  indicador2["posicao"]#posicao_indicador2.posicao
-    if indicador1["posicao"] < indicador2["posicao"]:
-        getAllPosicoes = session.scalars(
-            select(posicao.Posicao).where((posicao.Posicao.fkIndicador_id.in_(indicadoresID)) & (posicao.Posicao.posicao < posicao_indicador2.posicao)))
-        if posicao_indicador2.posicao > 0:
-            posicao_indicador2.posicao -= 1
-        print('indicador1["posicao"] < indicador2["posicao"]')
-        print(f'posicao_indicador1.posicao: {posicao_indicador1.posicao}')
-        print(f'posicao_indicador2.posicao: {posicao_indicador2.posicao}')
-        for posicoes in getAllPosicoes.all():
-                #print(f'posicoes.posicao: {posicoes.indicador.nome}')
-                if posicoes.posicao > 0:
-                    print(f"posicoes.posicao antes: {posicoes.posicao}")
-                    posicoes.posicao -=1
-                    print(f"posicoes.posicao depois: {posicoes.posicao}")
-    
-    if indicador1["posicao"] > indicador2["posicao"]:
-        getAllPosicoes = session.scalars(
-            select(posicao.Posicao).where((posicao.Posicao.fkIndicador_id.in_(indicadoresID)) & (posicao.Posicao.posicao > posicao_indicador2.posicao)))
-        #print(getAllPosicoes.all())
-        #copia_getAllPosicoes = getAllPosicoes.all() 
-
-        #lenPosicoes = len(copia_getAllPosicoes)
-        print('indicador1["posicao"] > indicador2["posicao"]')
-        print(f'posicao_indicador1.posicao: {posicao_indicador1.posicao}')
-        print(f'posicao_indicador2.posicao: {posicao_indicador2.posicao}')
-        #if posicao_indicador2.posicao < lenPosicoes - 1:
-        posicao_indicador2.posicao += 1
-        #print(copia_getAllPosicoes.count())
-        #for posicoes in getAllPosicoes.all():
-        for posicoes in getAllPosicoes.all():
-            #if posicoes.posicao < lenPosicoes - 1:
-                print(f"posicoes.posicao antes: {posicoes.posicao}")
-                posicoes.posicao +=1
-                print(f"posicoes.posicao depois: {posicoes.posicao}")
-
-    #posicao_indicador1.posicao = posicao_indicador2.posicao
-    #posicao_indicador2.posicao = guardar_posicao1
-
-    # Commit das mudanças
+    for index in range(len(posicao_indicadores_list)):
+        posicao_indicadores_list[index].posicao = index
+        
     session.commit()
-    session.refresh(posicao_indicador1)
-    session.refresh(posicao_indicador2)
 
-    return
 @indicadorRouter.post("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/anexos/", status_code=HTTPStatus.CREATED)
 async def admin_post_anexo_indicador(dimensaoNome: str,
                                     indicadorNome: str,
