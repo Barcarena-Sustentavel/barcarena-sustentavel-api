@@ -316,6 +316,7 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
     existing_anexo = session.scalar(select(anexo.Anexo).where(
         anexo.Anexo.id == idAnexo
     ))
+    print(f"existing_anexo: {existing_anexo}")
 
     if not existing_anexo:
         raise HTTPException(
@@ -354,7 +355,7 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
                 fkAnexo_id=existing_anexo.id
             )
             session.add(existing_posicao)
-            session.flush(existing_posicao)
+            session.flush()
         
         # existing_anexo.posicao = None
         existing_anexo.posicao = []
