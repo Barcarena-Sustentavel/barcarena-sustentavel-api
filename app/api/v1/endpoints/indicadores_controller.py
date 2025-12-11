@@ -15,7 +15,7 @@ import csv
 import io
 import re
 import pandas as pd
-
+from app.dependencies import connectMinio
 indicadorRouter = APIRouter()
 @indicadorRouter.get("/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", response_model=indicador_schema.IndicadorGraficos)
 async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
@@ -26,14 +26,7 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
     anexoIndicador = session.scalars(select(anexo.Anexo).where(
         anexo.Anexo.fkIndicador_id == await get_model_id(indicadorNome, session, indicador.Indicador)
     ))
-
-    client = Minio(
-        "54.233.210.68:6001",
-        access_key="minioadmin",
-        secret_key="minioadmin",
-        secure=False
-    )
-    #print(anexoIndicador.all())
+    client = connectMinio()
     response:indicador_schema.IndicadorGraficos = indicador_schema.IndicadorGraficos(nome=indicadorDimensao.nome, graficos=[])
     for anexos in anexoIndicador.all():
         path = ""
@@ -191,12 +184,8 @@ async def admin_update_indicador(
             path = existing_indicador.anexos[pos].path
             re_path = re.sub(rf"/{indicadorNome}/", f'/{indicadorNovo}/',path)
             existing_indicador.anexos[pos].path = re_path
-        client = Minio(
-        "54.233.210.68:6001",
-        access_key="minioadmin",
-        secret_key="minioadmin",
-        secure=False
-    )
+        client = connectMinio()
+
 
         bucket_name = "anexos-barcarena"
         objects_to_move = client.list_objects(bucket_name, prefix=f"{dimensaoNome}/{indicadorNome}", recursive=True)
@@ -260,13 +249,8 @@ async def admin_post_anexo_indicador(dimensaoNome: str,
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
 
     try:
-        client = Minio(
-            #endpoint="localhost:9000",  # Use the service name from docker-compose
-            endpoint="54.233.210.68:6001",  # Use the service name from docker-compose
-            access_key="minioadmin",  # Default access key or your configured one
-            secret_key="minioadmin",  # Default secret key or your configured one
-            secure=False  # Set to True if you have SSL configured
-        )
+        client = connectMinio()
+
 
         new_anexo_indicador = anexo.Anexo(fkIndicador_id= indicador_id,
                                         fkKml_id=None,
@@ -436,12 +420,7 @@ async def admin_delete_indicador_anexo(
 
     # Delete the file from Minio storage
     try:
-        client = Minio(
-            endpoint="54.233.210.68:6001",
-            access_key="minioadmin",
-            secret_key="minioadmin",
-            secure=False
-        )
+        client = connectMinio()
         client.remove_object("anexos-barcarena", existing_anexo.path)
     except Exception as e:
         # Log the error but continue with database deletion

@@ -52,12 +52,8 @@ async def admin_post_kml(dimensaoNome: str, kmlNovo: kml_schema.KMLSchema ,sessi
 
 @kmlRouter.post("/admin/dimensoes/{dimensaoNome}/kml/{kmlNome}/anexos/")
 async def admin_post_anexo_kml(dimensaoNome: str, kmlNome: str, arquivoKml: Annotated[UploadFile, Form()],session: Session = Depends(get_db)):
-    client = Minio(
-        "http://54.233.210.68:6001",
-        access_key="minioadmin",
-        secret_key="minioadmin",
-        secure=False
-    )
+    client = connectMinio()
+
 
     client.put_object("anexos-barcarena", f"{dimensaoNome}/KMLs/{kmlNome}/{arquivoKml.filename}", arquivoKml.file, arquivoKml.size)
 
@@ -109,12 +105,8 @@ async def admin_patch_kml(dimensaoNome: str,
                         kmlNome: str,
                         arquivoKml: Optional[Annotated[UploadFile, Form()]] = None,
                         session: Session = Depends(get_db)):
-    client = Minio(
-        "http://54.233.210.68:6001",
-        access_key="minioadmin",
-        secret_key="minioadmin",
-        secure=False
-    )
+    client = connectMinio()
+
 
     #dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     kml_id = await get_model_id(kmlNome, session, kml.KML)

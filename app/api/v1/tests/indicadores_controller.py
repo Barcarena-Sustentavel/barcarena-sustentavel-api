@@ -27,12 +27,7 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
         anexo.Anexo.fkIndicador_id == await get_model_id(indicadorNome, session, indicador.Indicador)
     ))
 
-    client = Minio(
-        "54.233.210.68:6001",
-        access_key="minioadmin",
-        secret_key="minioadmin",
-        secure=False
-    )
+   client = connectMinio()
     #print(anexoIndicador.all())
     response:indicador_schema.IndicadorGraficos = indicador_schema.IndicadorGraficos(nome=indicadorDimensao.nome, graficos=[])
     for anexos in anexoIndicador.all():
@@ -191,12 +186,7 @@ async def admin_update_indicador(
             path = existing_indicador.anexos[pos].path
             re_path = re.sub(rf"/{indicadorNome}/", f'/{indicadorNovo}/',path)
             existing_indicador.anexos[pos].path = re_path
-        client = Minio(
-        "54.233.210.68:6001",
-        access_key="minioadmin",
-        secret_key="minioadmin",
-        secure=False
-    )
+       client = connectMinio()
 
         bucket_name = "anexos-barcarena"
         objects_to_move = client.list_objects(bucket_name, prefix=f"{dimensaoNome}/{indicadorNome}", recursive=True)
@@ -464,13 +454,7 @@ async def admin_delete_indicador_anexo(
         )
 
     # Delete the file from Minio storage
-    try:
-        client = Minio(
-            endpoint="54.233.210.68:6001",
-            access_key="minioadmin",
-            secret_key="minioadmin",
-            secure=False
-        )
+    client = connectMinio()
         client.remove_object("anexos-barcarena", existing_anexo.path)
     except Exception as e:
         # Log the error but continue with database deletion
