@@ -11,6 +11,7 @@ import smtplib
 # from email.mime.text import MIMEText
 from email.message import EmailMessage
 from decouple import config
+from pydantic import EmailStr
 
 contribuicaoRouter = APIRouter()
 
@@ -169,7 +170,7 @@ async def get_email_contribuicao(session: Session = Depends(get_db), status_code
     return {"email_contribuicao": email_contribuicao_atual}
 
 @contribuicaoRouter.patch("/admin/email_contribuicao")
-async def patch_email_contribuicao(email: Annotated[str, Form()], session: Session = Depends(get_db), status_code=HTTPStatus.OK):
+async def patch_email_contribuicao(email: Annotated[EmailStr, Form()], session: Session = Depends(get_db), status_code=HTTPStatus.OK):
     email_contribuicao_atual = session.scalars(select(emailModel.Email)).first()
     
     email_contribuicao_atual.email = email
@@ -179,7 +180,7 @@ async def patch_email_contribuicao(email: Annotated[str, Form()], session: Sessi
     return status_code
 
 @contribuicaoRouter.post("/admin/email_contribuicao")
-async def post_email_contriubicao(email: Annotated[str, Form()], session: Session = Depends(get_db), status_code=HTTPStatus.OK):
+async def post_email_contribuicao(email: Annotated[EmailStr, Form()], session: Session = Depends(get_db), status_code=HTTPStatus.OK):
     novo_email = emailModel.Email(email=email)
     
     session.add(novo_email)

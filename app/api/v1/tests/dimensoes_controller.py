@@ -73,12 +73,17 @@ async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) ->
 
 @dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/artigoDimensao")
 def get_dimensao_artigo(dimensaoNome: str):
+<<<<<<< HEAD
     client = Minio(
         endpoint="barcarena-minio:9000",
         access_key="minioadmin",
         secret_key="minioadmin",
         secure=False
     )
+=======
+    client = connectMinio()
+
+>>>>>>> desenvolvimento
     bucket_name:str = "anexos-barcarena"
     try:
         prefix = f"{dimensaoNome}/Artigo/"
@@ -101,12 +106,17 @@ def get_dimensao_artigo(dimensaoNome: str):
         raise HTTPException(status_code=500, detail=f"Erro ao buscar artigo: {str(e)}")
 
 async def save_artigo(dimensaoNome: str, file: UploadFile, patch: bool):
+<<<<<<< HEAD
     client = Minio(
         endpoint="barcarena-minio:9000",
         access_key="minioadmin",
         secret_key="minioadmin",
         secure=False
     )
+=======
+    client = connectMinio()
+
+>>>>>>> desenvolvimento
     bucket_name:str = "anexos-barcarena"
 
     path = f"{dimensaoNome}/Artigo/{file.filename}"
@@ -132,12 +142,7 @@ async def update_dimensao_artigo(dimensaoNome: str, file: UploadFile):
 @dimensaoRouter.delete("/dimensoes/{dimensaoNome}/artigoDimensao")
 def delete_dimensao_artigo(dimensaoNome: str):
     bucket_name:str = "anexos-barcarena"
-    client = Minio(
-        "54.233.210.68:6001",
-        access_key="minioadmin",
-        secret_key="minioadmin",
-        secure=False
-    )
+   client = connectMinio()
     try:
         prefix = f"{dimensaoNome}/Artigo/"
         objetos = list(client.list_objects(bucket_name, prefix=prefix, recursive=True))
@@ -159,12 +164,8 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
 
     if dimensao_data.nome != update_dimensao.nome and update_dimensao.nome != "":
         dimensao_data.nome = update_dimensao.nome
-        client = Minio(
-            "barcarena-minio:9000",
-            access_key="minioadmin",
-            secret_key="minioadmin",
-            secure=False
-        )
+        client = connectMinio()
+
         #for anexo in dimensao_data.anexos:
         for pos in range(len(dimensao_data.anexos)):
             path = dimensao_data.anexos[pos].path
@@ -174,12 +175,7 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
         bucket_name = "anexos-barcarena"
         objects_to_move = client.list_objects(bucket_name, prefix=dimensaoNome, recursive=True)
 
-    client = Minio(
-        "54.233.210.68:6001",
-        access_key="minioadmin",
-        secret_key="minioadmin",
-        secure=False
-    )
+   client = connectMinio()
 
     bucket_name = "anexos-barcarena"
     objects_to_move = client.list_objects(bucket_name, prefix=dimensaoNome, recursive=True)
@@ -223,12 +219,7 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
 async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK):
     get_dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
 
-    client = Minio(
-        "54.233.210.68:6001",
-        access_key="minioadmin",
-        secret_key="minioadmin",
-        secure=False
-    )
+   client = connectMinio()
     bucket_name:str = "anexos-barcarena"
     prefix = f"{dimensaoNome}/Artigo/"
     objetos = list(client.list_objects(bucket_name, prefix=prefix, recursive=True))
