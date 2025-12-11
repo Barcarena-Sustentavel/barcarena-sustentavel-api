@@ -23,6 +23,7 @@ pydantic-settings = "^2.10.1"
 python-decouple = "3.8"
 bcrypt = "^4.3.0"
 pytest = "^9.0.1"
+pydantic = {extras = ["email"], version = "^2.12.5"}
 
 [tool.poetry.dev-dependencies]
 uvicorn = "^0.34.0"
