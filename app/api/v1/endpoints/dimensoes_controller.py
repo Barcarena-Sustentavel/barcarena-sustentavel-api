@@ -66,6 +66,7 @@ async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) ->
             Posicao.fkIndicador_id == a.id
         ))
         indicadoresDimensao.append({'nome': a.nome, 'posicao': posicao.posicao if posicao else 0})
+ 
     for b in refsall:
         refsIndicador.append(referencia_schema.ReferenciaSchema(id=b.id, nome=b.nome, fkDimensao=b.fkDimensao_id, link=b.link))
     for c in estudosComplementaresAll:
@@ -231,6 +232,8 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     referencias_all:list = referencias_dimensao.all()
     indicadores_all:list = indicadores_dimensao.all()
     estudos_complementares_all:list = estudos_complementares_dimensao.all()
+    
+    print(f"indicadores_all: {indicadores_all}")
 
     dados_dimensao_json = dimesao_schema.DimensaoSchema(nome=dados_dimensao.nome, descricao=dados_dimensao.descricao)
     referencias_nomes = []
@@ -239,6 +242,19 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
 
     checarListaVazia(referencias_all, referencias_nomes, False, session)
     checarListaVazia(indicadores_all, indicadores_nomes, True, session)
+    
+    print(f"indicadores_nomes: {indicadores_nomes}")
+    
+    #verificação de posição
+    posicoes_set = set()
+    for current_indicador in indicadores_nomes:
+        if current_indicador['posicao'] in posicoes_set:
+            current_indicador['posicao'] = max(posicoes_set) + 1
+        posicoes_set.add(current_indicador['posicao'])
+    
+    print(f"indicadores_nomes(corrigidos): {indicadores_nomes}")
+    
+    
 
     checarListaVazia(estudos_complementares_all, estudos_complementares_nomes, False, session)
     return {"dimensao":dados_dimensao_json,"referencias": referencias_nomes, "indicadores": indicadores_nomes, "artigo": nome_artigo, "estudos_complementares": estudos_complementares_nomes}

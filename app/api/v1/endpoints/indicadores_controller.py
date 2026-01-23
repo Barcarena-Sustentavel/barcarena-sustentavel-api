@@ -363,7 +363,7 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
         existing_anexo.posicao.append(existing_posicao)
         # print(f"existing_anexo.posicao = {existing_anexo.posicao[0].posicao if len(existing_anexo.posicao) >= 0 else None }")
         session.add(existing_posicao)
-        session.refresh(existing_posicao)
+        session.refresh(existing_anexo)
 
     # Handle file upload if provided
     #if grafico.filename != existing_anexo.path:

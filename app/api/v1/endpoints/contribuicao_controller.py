@@ -52,7 +52,7 @@ async def post_contribuicao(background: BackgroundTasks,
             status_code=422,
             detail="E-mail deve ser menor que 250 caracteres."
         )
-    if not telefone.isnumeric() or len(telefone) != 11:
+    if telefone and (not telefone.isnumeric() or len(telefone) <= 11):
         raise HTTPException(
             status_code=422,
             detail="Telefone deve ser 11 dígitos (DDD + número de telefone) e conter apenas caracteres numéricos."
@@ -78,6 +78,12 @@ async def post_contribuicao(background: BackgroundTasks,
         arquivo_nome = file.filename
         arquivo_mime_type = file.content_type or None
         arquivo_dados = await file.read()
+        
+    if not comentario:
+        raise HTTPException(
+            status_code=422,
+            detail="Campo de comentário obrigatório."
+        )
     
     email_destinatario = session.scalars(select(emailModel.Email)).first().email
 
