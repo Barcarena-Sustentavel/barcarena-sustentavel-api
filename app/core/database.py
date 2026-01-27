@@ -1,5 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+import os
+node_env = os.environ.get('NODE_ENV')
 
 SQLALCHEMY_DATABASE_URL = "postgresql://barcarena_sustentavel:barcarenasustentavel@54.233.210.68:6000/barcarena_sustentavel"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True) # pool_pre_ping for robust connections
