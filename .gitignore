@@ -1,1 +1,20 @@
 #Created by venv; see https://docs.python.org/3/library/venv.html
+logs/*
+app/domain/schemas/__pycache__/*
+app/domain/models/__pycache__/*
+app/api/v1/endpoints/auth/__pycache__/*
+app/api/v1/endpoints/__pycache__/*
+app/__pycache__/*
+app/domain/schemas/response_schemas/__pycache__/*
+app/domain/schemas/__pycache__/*
+app/domain/schemas/response_schemas/__pycache__/*
+app/domain/schemas/__pycache__/*
+app/domain/models/__pycache__/*
+app/core/__pycache__/*
+app/api/v1/endpoints/aux/__pycache__/*
+app/core/__pycache__/*
+app/api/v1/endpoints/__pycache__/*
+app/api/v1/__pycache__/*
+app/api/__pycache__/*
+app/__pycache__/*
+__pycache__/*
