@@ -16,10 +16,11 @@ from .aux.get_model_id import get_model_id
 from minio import Minio
 import base64
 import os
+from app.dependencies import connectMinio 
 
 estudoComplementarRouter = APIRouter()
 
-@estudoComplementarRouter.post("/admin/dimensoes/estudo_complementar/", status_code=HTTPStatus.CREATED)
+@estudoComplementarRouter.post("/admin/pagina_inicial/estudos_complementares/", status_code=HTTPStatus.CREATED)
 async def create_estudo_complementar(
     nome: Annotated[str, Form()],
     pdf: UploadFile = File(...),
@@ -27,13 +28,7 @@ async def create_estudo_complementar(
     status_code=HTTPStatus.CREATED
 ):
     try:
-        client = Minio(
-            endpoint="http://54.233.210.68:6001",  # Nome do serviço no docker-compose
-            access_key="minioadmin",
-            secret_key="minioadmin",
-            secure=False
-        )
-
+        client = connectMinio()
         # Upload para MinIO
         file_path = f"/Estudos_Complementares/{pdf.filename}"
         client.put_object(
@@ -44,7 +39,7 @@ async def create_estudo_complementar(
         )
 
         new_estudo_complementar = estudoComplementar.EstudoComplementar(
-            nome=nome,
+            nome=nome,fkDimensao_id=None
         )
 
         # Cria entidades
@@ -60,7 +55,7 @@ async def create_estudo_complementar(
             tituloGrafico=None
         )
         print("conflito")
-        #new_estudo_complementar.anexos.append(new_anexo_estudo_complementar)
+        new_estudo_complementar.anexos.append(new_anexo_estudo_complementar)
 
         # Adiciona no banco mas só commita no final
         session.add(new_anexo_estudo_complementar)
@@ -78,24 +73,27 @@ async def create_estudo_complementar(
             detail=f"Ocorreu um erro ao salvar o estudo complementar: {error}"
         )
     
-@estudoComplementarRouter.get("/admin/dimensoes/estudos_complementares/")
+@estudoComplementarRouter.get("/admin/pagina_inicial/estudos_complementares/")
 async def get_estudos_complementares(
     session: Session = Depends(get_db)
 ):
+    try:
     # Consulta apenas os nomes
-    estudos = (
-        session.query(estudoComplementar.EstudoComplementar.nome)
-        .filter(estudoComplementar.EstudoComplementar.fkDimensao_id == None)
-        .all()
-    )
-    estudosList:list = []
-    for e in estudos:
-        estudosList.append(e[0])
-    # Retorna só os nomes em uma lista
-    return {"estudos": estudosList}
-
+        estudos = (
+            session.query(estudoComplementar.EstudoComplementar.nome)
+            .filter(estudoComplementar.EstudoComplementar.fkDimensao_id == None)
+            .all()
+        )
+        print(estudos)
+        estudosList:list = []
+        for e in estudos:
+            estudosList.append(e[0])
+        # Retorna só os nomes em uma lista
+        return {"estudos": estudosList}
+    except Exception as e:
+        print(e)
 # GET 2 - buscar o path de um estudo complementar específico
-@estudoComplementarRouter.get("/admin/dimensoes/estudo_complementar/{estudoComplementarNome}/path/")
+@estudoComplementarRouter.get("/admin/pagina_inicial/estudos_complementares/{estudoComplementarNome}/path/")
 async def get_estudo_complementar_path(
     name: str,
     session: Session = Depends(get_db)
@@ -119,7 +117,7 @@ async def get_estudo_complementar_path(
     # Retorna o path no MinIO
     return {"estudo": name, "path": estudo.anexos[0].path}
 
-@estudoComplementarRouter.patch("/admin/dimensoes/estudo_complementar/{estudo_complementar_nome}/")
+@estudoComplementarRouter.patch("/admin/pagina_inicial/estudo_complementar/{estudo_complementar_nome}/")
 async def patch_estudo_complementar(
     estudo_complementar_nome: str,
     novo_nome: str = Form(...),
@@ -148,13 +146,7 @@ async def patch_estudo_complementar(
         print(f"Cursor position after seek(0): {pdf.file.tell()}")
 
         if tamanho_pdf >= 1: # se pdf não for vazio substitui o anexo
-            client = Minio(
-                "http://54.233.210.68:6001",
-                access_key="minioadmin",
-                secret_key="minioadmin",
-                secure=False
-            )
-
+            client = connectMinio()
             client.remove_object("anexos-barcarena", estudo.anexos[0].path)
             # Upload para MinIO
             file_path = f"Estudos_Complementares/{pdf.filename}"
@@ -174,5 +166,41 @@ async def patch_estudo_complementar(
             status_code=HTTPStatus.CONFLICT,
             detail=f"Ocorreu um erro: {error}"
         )
+
+    return
+@estudoComplementarRouter.delete("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudo_complementar_nome}/")
+async def delete_estudo_complementar(
+    dimensaoNome: str,
+    estudo_complementar_nome: str,
+    session: Session = Depends(get_db)
+):
+    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
+
+    estudo = (
+        session.query(estudoComplementar.EstudoComplementar)
+        .filter(
+            estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
+            estudoComplementar.EstudoComplementar.nome == estudo_complementar_nome
+        )
+        .first()
+    )
+    if not estudo:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=f"Estudo complementar não encontrado: {estudo_complementar_nome}"
+        )
+    print(estudo)
+    try:
+        client = connectMinio()
+        client.remove_object("anexos-barcarena", estudo.anexos[0].path)
+    except Exception as error:
+        session.rollback()
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail=f"Ocorreu um erro: {error}"
+        )
+    session.delete(estudo.anexos[0])
+    session.delete(estudo)
+    session.commit()
 
     return
