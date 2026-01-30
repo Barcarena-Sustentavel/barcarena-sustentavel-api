@@ -351,7 +351,7 @@ async def get_estudos_complementares_by_dimensao(
 ):
     # Busca a dimensão pelo nome
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
-
+    print(dimensao_id)
     # Consulta apenas os nomes
     estudos = (
         session.query(estudoComplementar.EstudoComplementar.nome)
