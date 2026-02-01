@@ -6,7 +6,7 @@ import os
 class Environment(BaseSettings):
     tipo:str = 'development'
 
-node_env = Environment().tipo #os.environ.get('NODE_ENV')
+node_env = Environment().tipo 
 print(node_env)
 database_url = "postgresql://barcarena_sustentavel:barcarenasustentavel@54.233.210.68:6000/barcarena_sustentavel"
 if node_env == 'production':
