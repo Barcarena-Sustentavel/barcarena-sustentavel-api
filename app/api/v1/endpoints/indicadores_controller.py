@@ -16,6 +16,7 @@ import io
 import re
 import pandas as pd
 from app.dependencies import connectMinio
+from app.core.database import Environment
 indicadorRouter = APIRouter()
 @indicadorRouter.get("/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", response_model=indicador_schema.IndicadorGraficos)
 async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
@@ -57,7 +58,6 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
             csv_reader = csv.reader(csv_data)
             # Convert CSV data to the format needed for your response
             rows = list(csv_reader)
-            print(rows)
             table_data = pd.DataFrame(rows[1:], columns=rows[0])
             categoria:list = []
             coluna_dados:list = []
@@ -140,12 +140,10 @@ async def admin_post_indicador(
     )).all()
 
     ultima_posicao = session.scalar(select(func.max(posicao.Posicao.posicao)).where(posicao.Posicao.fkIndicador_id.in_([ind.id for ind in indicadores_dimensao])))
-    print(ultima_posicao)
     if ultima_posicao == None:
         ultima_posicao = 0
     else:
         ultima_posicao += 1
-    print(f"ultima_posicao = {ultima_posicao}")
     new_indicador_posicao = posicao.Posicao(posicao= ultima_posicao,fkIndicador_id=new_indicador.id, fkAnexo_id=None)
     session.add(new_indicador_posicao)
     session.commit()
@@ -192,7 +190,7 @@ async def admin_update_indicador(
 
         for obj in objects_to_move:
                 old_object_name = obj.object_name
-                new_object_name = old_object_name.replace(dimensaoNome, indicadorNovo, 1)
+                new_object_name = old_object_name.replace(indicadorNome, indicadorNovo, 1)
 
                 print(f"Antigo objeto: {old_object_name}")
                 print(f"Novo objeto: {new_object_name}")
@@ -311,7 +309,7 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
     # Get dimension and indicator IDs
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
-
+    print('sessao',session)
     # Find the existing anexo by ID
     existing_anexo = session.scalar(select(anexo.Anexo).where(
         anexo.Anexo.id == idAnexo
@@ -363,19 +361,13 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
         existing_anexo.posicao.append(existing_posicao)
         # print(f"existing_anexo.posicao = {existing_anexo.posicao[0].posicao if len(existing_anexo.posicao) >= 0 else None }")
         session.add(existing_posicao)
-        session.refresh(existing_anexo)
+        #session.refresh(existing_anexo)
 
     # Handle file upload if provided
     #if grafico.filename != existing_anexo.path:
-    print(grafico)
+    print('grafico',grafico)
     if grafico is not None:
-        client = Minio(
-            endpoint="barcarena-minio:9000",
-            access_key="minioadmin",
-            secret_key="minioadmin",
-            secure=False
-        )
-
+        client = connectMinio()
          # Delete the existing file from Minio
         try:
             client.remove_object("anexos-barcarena", existing_anexo.path)
@@ -389,7 +381,7 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
 
         # Upload new file to Minio
 
-
+    print('aq')
     # Save changes
     session.commit()
     session.refresh(existing_anexo)

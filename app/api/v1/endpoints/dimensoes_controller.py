@@ -32,7 +32,7 @@ dimensaoRouter = APIRouter()
 async def get_dimensoes(session: Session = Depends(get_db)) -> Any:
     dimensao_data = session.scalars(select(dimensao.Dimensao))
     dimensao_sorted:list = sorted(dimensao_data.all(), key=lambda d: d.id)
-    print(dimensao_sorted)
+    #print(dimensao_sorted)
     dimensao_nome:list = []
     for d in dimensao_sorted:
         dimensao_nome.append(d.nome)
@@ -233,7 +233,7 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     indicadores_all:list = indicadores_dimensao.all()
     estudos_complementares_all:list = estudos_complementares_dimensao.all()
     
-    print(f"indicadores_all: {indicadores_all}")
+    #print(f"indicadores_all: {indicadores_all}")
 
     dados_dimensao_json = dimesao_schema.DimensaoSchema(nome=dados_dimensao.nome, descricao=dados_dimensao.descricao)
     referencias_nomes = []
@@ -243,7 +243,7 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     checarListaVazia(referencias_all, referencias_nomes, False, session)
     checarListaVazia(indicadores_all, indicadores_nomes, True, session)
     
-    print(f"indicadores_nomes: {indicadores_nomes}")
+    #print(f"indicadores_nomes: {indicadores_nomes}")
     
     #verificação de posição
     posicoes_set = set()
@@ -252,7 +252,7 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
             current_indicador['posicao'] = max(posicoes_set) + 1
         posicoes_set.add(current_indicador['posicao'])
     
-    print(f"indicadores_nomes(corrigidos): {indicadores_nomes}")
+    #print(f"indicadores_nomes(corrigidos): {indicadores_nomes}")
     
     
 
@@ -574,7 +574,6 @@ async def delete_estudo_complementar(
             status_code=HTTPStatus.NOT_FOUND,
             detail=f"Estudo complementar não encontrado: {estudo_complementar_nome}"
         )
-    print(estudo)
     try:
         client = Minio(
                 endpoint="barcarena-minio:9000",
