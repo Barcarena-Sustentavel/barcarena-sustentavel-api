@@ -52,7 +52,7 @@ async def post_admin_referencia(dimensaoNome: str, referenciaNova: referencia_sc
 
     return referencia_response
 
-@referenciasRouter.patch("/admin/dimensoes/{dimensaoNome}/referencias/{referenciaNome}/", response_model=referencia_schema.ReferenciaSchema,status_code=HTTPStatus.OK)
+@referenciasRouter.patch("/admin/dimensoes/{dimensaoNome}/referencias/", response_model=referencia_schema.ReferenciaSchema,status_code=HTTPStatus.OK)
 async def patch_admin_referencia(dimensaoNome: str, referenciaNome: str, referenciaModificado: referencia_schema.ReferenciaSchema, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     referencia_data = session.scalar(select(referencias.Referencias).where(
@@ -73,11 +73,11 @@ async def patch_admin_referencia(dimensaoNome: str, referenciaNome: str, referen
 
     return referencia_response
 
-@referenciasRouter.delete("/admin/dimensoes/{dimensaoNome}/referencias/{referenciaNome}/", status_code=HTTPStatus.NO_CONTENT)
-async def delete_admin_referencias(dimensaoNome: str, referenciaNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> None:
+@referenciasRouter.delete("/admin/dimensoes/{dimensaoNome}/referencias/", status_code=HTTPStatus.NO_CONTENT)
+async def delete_admin_referencias(dimensaoNome: str, nome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> None:
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     referencia_data = session.scalar(select(referencias.Referencias).where(
-        referencias.Referencias.nome == referenciaNome
+        referencias.Referencias.nome == nome
     ))
     session.delete(referencia_data)
     session.commit()

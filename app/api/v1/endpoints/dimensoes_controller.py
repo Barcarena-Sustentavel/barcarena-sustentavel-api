@@ -553,10 +553,11 @@ async def patch_estudo_complementar(
 
     return
 
-@dimensaoRouter.delete("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudo_complementar_nome}/")
+@dimensaoRouter.delete("/admin/dimensoes/{dimensaoNome}/estudo_complementar/")
 async def delete_estudo_complementar(
     dimensaoNome: str,
-    estudo_complementar_nome: str,
+    #estudo_complementar_nome: str,
+    nome:str,
     session: Session = Depends(get_db)
 ):
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
@@ -565,14 +566,14 @@ async def delete_estudo_complementar(
         session.query(estudoComplementar.EstudoComplementar)
         .filter(
             estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
-            estudoComplementar.EstudoComplementar.nome == estudo_complementar_nome
+            estudoComplementar.EstudoComplementar.nome == nome
         )
         .first()
     )
     if not estudo:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail=f"Estudo complementar não encontrado: {estudo_complementar_nome}"
+            detail=f"Estudo complementar não encontrado: {nome}"
         )
     try:
         client = Minio(

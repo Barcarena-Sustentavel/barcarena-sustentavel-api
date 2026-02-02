@@ -431,17 +431,17 @@ async def admin_delete_indicador_anexo(
         "deleted_anexo_id": idAnexo
     }
 
-@indicadorRouter.delete("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", status_code=HTTPStatus.NO_CONTENT)
+@indicadorRouter.delete("/admin/dimensoes/{dimensaoNome}/indicador/", status_code=HTTPStatus.NO_CONTENT)
 async def admin_delete_indicador(
     dimensaoNome: str,
-    indicadorNome: str,
+    nome: str,
     session: Session = Depends(get_db)
 ) -> None:
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
 
     db_indicador = session.scalar(
         select(indicador.Indicador).where(
-            indicador.Indicador.nome == indicadorNome,
+            indicador.Indicador.nome == nome,
             indicador.Indicador.fkDimensao_id == dimensao_id
         )
     )
