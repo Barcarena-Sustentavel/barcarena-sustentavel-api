@@ -52,11 +52,11 @@ async def post_contribuicao(background: BackgroundTasks,
             status_code=422,
             detail="E-mail deve ser menor que 250 caracteres."
         )
-    if telefone and (not telefone.isnumeric() or len(telefone) <= 11):
-        raise HTTPException(
-            status_code=422,
-            detail="Telefone deve ser 11 dígitos (DDD + número de telefone) e conter apenas caracteres numéricos."
-        )
+    # if telefone and (not telefone.isnumeric() or len(telefone) <= 11):
+    #     raise HTTPException(
+    #         status_code=422,
+    #         detail="Telefone deve ser 11 dígitos (DDD + número de telefone) e conter apenas caracteres numéricos."
+    #     )
         # or (len(await file.read()) / (1024 * 1024)) > 25)
     if file:
         if file.content_type != "application/pdf":
