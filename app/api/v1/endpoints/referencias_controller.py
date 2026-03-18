@@ -8,7 +8,7 @@ from app.core.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Any, List, Optional, Union
-from .aux.get_model_id import get_model_id
+from .aux_.get_model_id import get_model_id
 
 referenciasRouter = APIRouter()
 

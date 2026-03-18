@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Any, Annotated, Optional
 from minio.commonconfig import CopySource
-from .aux.get_model_id import get_model_id
+from .aux_.get_model_id import get_model_id
 from minio import Minio
 import base64
 import os
