@@ -31,7 +31,11 @@ class DadosGrafico(BaseModel):
     categoria: List[int | float | str]
     posicao: Optional[int]
 
-class IndicadorGraficos(IndicadorSchema):
+class IndicadorEnviar(IndicadorSchema):
+    periodicidade:str
+    ultimaAtualizacao:str
+    unidadeMedida:str
+    metodologia:str
     graficos: List[DadosGrafico]
 
 class IndicadorTrocarPosicao(BaseModel):
