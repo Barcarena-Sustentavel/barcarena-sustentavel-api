@@ -4,7 +4,7 @@ from fastapi.responses import StreamingResponse
 from io import BytesIO
 from app.domain.models.anexo import Anexo
 from app.domain.models.posicao import Posicao
-from fastapi import APIRouter,Depends, HTTPException, UploadFile, Form, File, Response
+from fastapi import APIRouter,Depends, HTTPException, UploadFile, Form, File, Response, Query
 from app.domain.schemas import dimesao_schema, indicador_schema, referencia_schema
 from app.domain.models import dimensao , indicador, indicador,  referencias, estudoComplementar
 from http import HTTPStatus
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Any, Annotated, Optional
 from minio.commonconfig import CopySource
-from .aux.get_model_id import get_model_id
+from .aux_.get_model_id import get_model_id
 from minio import Minio
 import base64
 import os
@@ -198,7 +198,6 @@ async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.Dime
     # Return updated data in same format as GET
     return {"dimensao": dimesao_schema.DimensaoSchema(nome=dimensao_data.nome, descricao=dimensao_data.descricao)}
 
-#Retorna todos os nomes dos kmls e contribuições de uma dimensão
 #Criado somente para ser utilizado na parte de administrador
 @dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/")
 async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK):
@@ -288,12 +287,7 @@ async def create_estudo_complementar(
     status_code=HTTPStatus.CREATED
 ):
     try:
-        client = Minio(
-            endpoint="barcarena-minio:9000",  # Nome do serviço no docker-compose
-            access_key="minioadmin",
-            secret_key="minioadmin",
-            secure=False
-        )
+        client = connectMinio()
 
         # Busca o ID da dimensão
         dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
@@ -311,6 +305,7 @@ async def create_estudo_complementar(
         new_estudo_complementar = estudoComplementar.EstudoComplementar(
             nome=nome,
             fkDimensao_id=dimensao_id,
+            pagina=None
         )
 
         # Cria entidades
@@ -366,10 +361,10 @@ async def get_estudos_complementares_by_dimensao(
 
 
 # GET 2 - buscar o path de um estudo complementar específico
-@dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudoComplementarNome}/path/")
+@dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/estudo_complementar/path/")
 async def get_estudo_complementar_path(
     dimensaoNome: str,
-    nome: str,
+    estudoComplementarNome: Annotated[str | None, Query()],
     session: Session = Depends(get_db)
 ):
     # Busca a dimensão
@@ -380,7 +375,7 @@ async def get_estudo_complementar_path(
         session.query(estudoComplementar.EstudoComplementar)
         .filter(
             estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
-            estudoComplementar.EstudoComplementar.nome == nome
+            estudoComplementar.EstudoComplementar.nome == estudoComplementarNome
         )
         .first()
     )
@@ -388,16 +383,16 @@ async def get_estudo_complementar_path(
     if not estudo:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail=f"Estudo complementar '{nome}' não encontrado para a dimensão '{dimensaoNome}'."
+            detail=f"Estudo complementar '{estudoComplementarNome}' não encontrado para a dimensão '{dimensaoNome}'."
         )
 
     # Retorna o path no MinIO
-    return {"estudo": nome, "path": estudo.anexos[0].path}
+    return {"estudo": estudoComplementarNome, "path": estudo.anexos[0].path}
 
-@dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudoComplementarNome}/", status_code=HTTPStatus.CREATED)
+@dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/estudo_complementar/", status_code=HTTPStatus.CREATED)
 async def get_estudo_complementar(
     dimensaoNome: str,
-    estudoComplementarNome: str,
+    estudoComplementarNome: Annotated[str | None, Query()],
     session: Session = Depends(get_db)
 ):
     # Busca a dimensão
@@ -420,12 +415,7 @@ async def get_estudo_complementar(
         )
     
     try:
-        client = Minio(
-            endpoint="barcarena-minio:9000",
-            access_key="minioadmin",
-            secret_key="minioadmin",
-            secure=False
-        )
+        client = connectMinio()
 
         pdf_file = client.get_object("anexos-barcarena", estudo.anexos[0].path)
         nome_arquivo = os.path.basename(estudo.anexos[0].path)
@@ -441,10 +431,10 @@ async def get_estudo_complementar(
 
     return {"estudo": estudoComplementarNome, "arquivo": {"arquivo_nome": nome_arquivo, "arquivo_data": pdf_file_b64}}
 
-@dimensaoRouter.get("/dimensoes/{dimensaoNome}/estudo_complementar/{estudoComplementarNome}/anexo/")
+@dimensaoRouter.get("/dimensoes/{dimensaoNome}/estudo_complementar/anexo/")
 async def get_anexo_estudo_complementar(
     dimensaoNome: str,
-    estudoComplementarNome: str,
+    estudoComplementarNome: Annotated[str | None, Query()],
     session: Session = Depends(get_db)
 ):
     # Busca a dimensão
@@ -467,12 +457,7 @@ async def get_anexo_estudo_complementar(
         )
 
     try:
-        client = Minio(
-            endpoint="barcarena-minio:9000",
-            access_key="minioadmin",
-            secret_key="minioadmin",
-            secure=False
-        )
+        client = connectMinio()
 
         pdf_file = client.get_object("anexos-barcarena", estudo.anexos[0].path)
         data = pdf_file.read()
@@ -491,10 +476,10 @@ async def get_anexo_estudo_complementar(
 
 
 
-@dimensaoRouter.patch("/admin/dimensoes/{dimensaoNome}/estudo_complementar/{estudo_complementar_nome}/")
+@dimensaoRouter.patch("/admin/dimensoes/{dimensaoNome}/estudo_complementar/")
 async def patch_estudo_complementar(
     dimensaoNome: str,
-    estudo_complementar_nome: str,
+    estudoComplementarNome: Annotated[str | None, Query()],
     novo_nome: str = Form(...),
     pdf: UploadFile = File(...),
     session: Session = Depends(get_db)
@@ -506,7 +491,7 @@ async def patch_estudo_complementar(
         session.query(estudoComplementar.EstudoComplementar)
         .filter(
             estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
-            estudoComplementar.EstudoComplementar.nome == estudo_complementar_nome
+            estudoComplementar.EstudoComplementar.nome == estudoComplementarNome
         )
         .first()
     )
@@ -524,12 +509,7 @@ async def patch_estudo_complementar(
         print(f"Cursor position after seek(0): {pdf.file.tell()}")
 
         if tamanho_pdf >= 1: # se pdf não for vazio substitui o anexo
-            client = Minio(
-                endpoint="barcarena-minio:9000",
-                access_key="minioadmin",
-                secret_key="minioadmin",
-                secure=False
-            )
+            client = connectMinio()
 
             client.remove_object("anexos-barcarena", estudo.anexos[0].path)
             # Upload para MinIO
@@ -556,8 +536,7 @@ async def patch_estudo_complementar(
 @dimensaoRouter.delete("/admin/dimensoes/{dimensaoNome}/estudo_complementar/")
 async def delete_estudo_complementar(
     dimensaoNome: str,
-    #estudo_complementar_nome: str,
-    nome:str,
+    estudoComplementarNome: Annotated[str | None, Query()],
     session: Session = Depends(get_db)
 ):
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
@@ -566,14 +545,14 @@ async def delete_estudo_complementar(
         session.query(estudoComplementar.EstudoComplementar)
         .filter(
             estudoComplementar.EstudoComplementar.fkDimensao_id == dimensao_id,
-            estudoComplementar.EstudoComplementar.nome == nome
+            estudoComplementar.EstudoComplementar.nome == estudoComplementarNome
         )
         .first()
     )
     if not estudo:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail=f"Estudo complementar não encontrado: {nome}"
+            detail=f"Estudo complementar não encontrado: {estudoComplementarNome}"
         )
     try:
         client = Minio(

@@ -1,4 +1,5 @@
-from fastapi import APIRouter,Depends, HTTPException, exceptions
+from fastapi import APIRouter,Depends, HTTPException, exceptions, Query
+from typing import Annotated
 from app.domain.schemas import referencia_schema 
 from app.domain.models import dimensao, referencias
 from app.domain.schemas.response_schemas.get_dimensao_response import DimensaoData
@@ -7,7 +8,7 @@ from app.core.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Any, List, Optional, Union
-from .aux.get_model_id import get_model_id
+from .aux_.get_model_id import get_model_id
 
 referenciasRouter = APIRouter()
 
@@ -52,18 +53,19 @@ async def post_admin_referencia(dimensaoNome: str, referenciaNova: referencia_sc
 
     return referencia_response
 
-@referenciasRouter.patch("/admin/dimensoes/{dimensaoNome}/referencias/", response_model=referencia_schema.ReferenciaSchema,status_code=HTTPStatus.OK)
-async def patch_admin_referencia(dimensaoNome: str, referenciaNome: str, referenciaModificado: referencia_schema.ReferenciaSchema, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
+@referenciasRouter.patch("/admin/dimensoes/{dimensaoNome}/referencias/",status_code=HTTPStatus.OK)
+async def patch_admin_referencia(dimensaoNome: str, referencia: Annotated[str | None, Query()], referenciaNova:referencia_schema.ReferenciaSchema, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
+    print(referencia)
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     referencia_data = session.scalar(select(referencias.Referencias).where(
-        referencias.Referencias.nome == referenciaNome
+        referencias.Referencias.nome == referencia
     ))
 
     if not referencia_data:
         raise HTTPException(status_code=404, detail="Referencia não encontrada")
 
-    referencia_data.nome = referenciaModificado.nome if referenciaModificado.nome != referencia_data.nome else referencia_data.nome
-    referencia_data.link = referenciaModificado.link if referenciaModificado.link != referencia_data.link else referencia_data.link
+    referencia_data.nome = referenciaNova.nome if referenciaNova.nome != referencia_data.nome else referencia_data.nome
+    referencia_data.link = referenciaNova.link if referenciaNova.link != referencia_data.link else referencia_data.link
     
     session.add(referencia_data)
     session.commit()

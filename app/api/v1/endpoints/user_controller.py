@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from sqlalchemy import select
 from http import HTTPStatus
-from .aux.get_model_id import get_model_id
+from .aux_.get_model_id import get_model_id
 from typing import Annotated
 from app.api.v1.endpoints.auth.auth import signJWT
 import logging
