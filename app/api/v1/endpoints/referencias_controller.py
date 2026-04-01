@@ -12,9 +12,7 @@ from .aux.get_model_id import get_model_id
 
 referenciasRouter = APIRouter()
 
-#@referenciasRouter.get("/admin/dimensoes/{dimensaoNome}/referencias/",response_model=List[str],status_code=HTTPStatus.OK)
 @referenciasRouter.get("/admin/dimensoes/{dimensaoNome}/referencias/",status_code=HTTPStatus.OK)
-#async def get_admin_referencias(dimensaoNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> List[str]:
 async def get_admin_referencias(dimensaoNome: str,referenciaNome: Optional[str] = None, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     if referenciaNome == None:

@@ -27,7 +27,7 @@ dimensaoRouter = APIRouter()
 #Retorna todos os indicadores de uma dimensão
 #dimensaoNome: nome da dimensão
 #session: sessão do banco de dados
-
+'''
 @dimensaoRouter.get("/dimensoes/")
 async def get_dimensoes(session: Session = Depends(get_db)) -> Any:
     dimensao_data = session.scalars(select(dimensao.Dimensao))
@@ -37,6 +37,24 @@ async def get_dimensoes(session: Session = Depends(get_db)) -> Any:
     for d in dimensao_sorted:
         dimensao_nome.append(d.nome)
     return {"dimensoes":dimensao_nome}
+'''
+@dimensaoRouter.get("/dimensoes/")
+async def get_dimensoes(session: Session = Depends(get_db)) -> Any:
+    dimensao_data = session.scalars(select(dimensao.Dimensao))
+    dimensao_data_all = dimensao_data.all()
+    dimensao_data_nome_posicao = []
+    for dimensao_id in dimensao_data_all:
+        dimensao_nome_posicao = {
+            "nome":dimensao_id.nome,
+            "posicao": dimensao_id.posicao[0].posicao
+        }
+        dimensao_data_nome_posicao.append(dimensao_nome_posicao)
+    dimensao_sorted:list = sorted(dimensao_data_nome_posicao, key=lambda d: d["posicao"])
+    dimensao_nome:list = []
+    for d in dimensao_sorted:
+        dimensao_nome.append(d["nome"])
+    return {"dimensoes":dimensao_nome}
+
 
 @dimensaoRouter.get("/dimensoes/{dimensaoNome}/")
 async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) -> Any:
