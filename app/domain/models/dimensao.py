@@ -16,3 +16,4 @@ class Dimensao(Base):
     contribuicoes = relationship("Contribuicao", back_populates="dimensao")
     anexos = relationship("Anexo", back_populates="dimensao")
     estudoComplementar = relationship("EstudoComplementar", back_populates="dimensao")
+    posicao = relationship("Posicao", back_populates="dimensao")

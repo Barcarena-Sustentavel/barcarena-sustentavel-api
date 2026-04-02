@@ -10,6 +10,8 @@ class Posicao(Base):
     posicao = Column(Integer, nullable=False)
     fkIndicador_id = Column(Integer, ForeignKey("barcarena_sustentavel.Indicador.id"), nullable=True)
     fkAnexo_id = Column(Integer, ForeignKey("barcarena_sustentavel.Anexo.id"), nullable=True)
+    fkDimensao_id = Column(Integer, ForeignKey("barcarena_sustentavel.Dimensao.id"), nullable=True)
 
     indicador = relationship("Indicador", back_populates="posicao")
     anexos = relationship("Anexo", back_populates="posicao")
+    dimensao = relationship("Dimensao", back_populates="posicao")

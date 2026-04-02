@@ -1,5 +1,5 @@
 from app.domain.schemas import indicador_schema, anexo_schema
-from app.domain.models import dimensao ,anexo,indicador, posicao
+from app.domain.models import dimensao ,anexo,indicador, posicao, referencias
 from sqlalchemy import select, and_, func
 from sqlalchemy.orm import Session
 from fastapi import APIRouter,Depends, HTTPException
@@ -18,7 +18,7 @@ import pandas as pd
 from app.dependencies import connectMinio
 from app.core.database import Environment
 indicadorRouter = APIRouter()
-@indicadorRouter.get("/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", response_model=indicador_schema.IndicadorGraficos)
+@indicadorRouter.get("/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", response_model=indicador_schema.IndicadorEnviar)
 async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     indicadorDimensao = session.scalar(select(indicador.Indicador).where(
@@ -28,7 +28,15 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
         anexo.Anexo.fkIndicador_id == await get_model_id(indicadorNome, session, indicador.Indicador)
     ))
     client = connectMinio()
-    response:indicador_schema.IndicadorGraficos = indicador_schema.IndicadorGraficos(nome=indicadorDimensao.nome, graficos=[])
+    response: indicador_schema.IndicadorEnviar = indicador_schema.IndicadorEnviar(
+    nome=indicadorDimensao.nome,
+    graficos=[],
+    fonteDeDados=indicadorDimensao.referencia.nome if indicadorDimensao.referencia else None,
+    periodicidade=indicadorDimensao.periodicidade if indicadorDimensao.periodicidade else None,
+    ultimaAtualizacao=indicadorDimensao.ultimaAtualizacao if indicadorDimensao.ultimaAtualizacao else None,
+    unidadeMedida=indicadorDimensao.unidadeMedida if indicadorDimensao.unidadeMedida else None,
+    metodologia=indicadorDimensao.metodologia if indicadorDimensao.metodologia else None,
+    )
     for anexos in anexoIndicador.all():
         path = ""
         #if dimensao_id == 86:
@@ -100,7 +108,7 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
             responseDados.release_conn()
 
     return response
-@indicadorRouter.get("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", response_model=anexo_schema.UpdateAnexoIndicadorSchema)
+@indicadorRouter.get("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/")
 async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     indicadorDimensao = session.scalar(select(indicador.Indicador).where(
@@ -109,10 +117,16 @@ async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, sess
     anexoIndicador = session.scalars(select(anexo.Anexo).where(
         anexo.Anexo.fkIndicador_id == await get_model_id(indicadorNome, session, indicador.Indicador)
     ))
-    response:anexo_schema.UpdateAnexoIndicadorSchema = anexo_schema.UpdateAnexoIndicadorSchema(nome=indicadorDimensao.nome,graficos=[])
+    response:indicador_schema.IndicadorEnviarAdmin = indicador_schema.IndicadorEnviarAdmin(nome=indicadorDimensao.nome,
+                                                                                                fonteDeDados=indicadorDimensao.referencia.nome if indicadorDimensao.referencia else "",
+                                                                                                periodicidade=indicadorDimensao.periodicidade if indicadorDimensao.periodicidade else "",
+                                                                                                ultimaAtualizacao=indicadorDimensao.ultimaAtualizacao if indicadorDimensao.ultimaAtualizacao else "",
+                                                                                                unidadeMedida=indicadorDimensao.unidadeMedida if indicadorDimensao.unidadeMedida else "",
+                                                                                                metodologia=indicadorDimensao.metodologia if indicadorDimensao.metodologia else "",
+                                                                                                graficos=[])
 
     for anexos in anexoIndicador.all():
-            response.graficos.append(anexo_schema.AnexoIndicadorSchema(
+            response.graficos.append(indicador_schema.AnexoIndicadorSchema(
             id=anexos.id,
             tituloGrafico=anexos.tituloGrafico,
             descricaoGrafico=anexos.descricaoGrafico,
@@ -120,19 +134,35 @@ async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, sess
             path=anexos.path,
             posicaoGrafico=anexos.posicao[0].posicao if anexos.posicao else 0 
         ))
-
     return response
 
 @indicadorRouter.post("/admin/dimensoes/{dimensaoNome}/indicador/", status_code=HTTPStatus.CREATED)
 async def admin_post_indicador(
     dimensaoNome: str,
-    indicadorNome: indicador_schema.IndicadorSchema,
+    indicadorNome: str,
+    referenciaNome:str,
+    periodicidade: str,
+    ultimaAtualizacao: str,
+    unidadeMedida: str,
+    metodologia:str,
     session: Session = Depends(get_db)):
 
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
-    new_indicador = indicador.Indicador(nome=indicadorNome.nome, fkDimensao_id=dimensao_id)
+    referencia = session.scalar(select(referencias.Referencias).where(referencias.Referencias.nome == referenciaNome))
+    new_indicador = indicador.Indicador(nome=indicadorNome, 
+                                        fkDimensao_id=dimensao_id,
+                                        referencia = referencia,
+                                        periodicidade = periodicidade,
+                                        ultimaAtualizacao = ultimaAtualizacao,
+                                        unidadeMedida = unidadeMedida,
+                                        metodologia = metodologia)
+    referencia.fkIndicador_id = new_indicador.id
     session.add(new_indicador)
+    session.flush()
+    
+    session.add(referencia)
     session.commit()
+    session.refresh(referencia)
     session.refresh(new_indicador)
 
     indicadores_dimensao = session.scalars(select(indicador.Indicador).where(
@@ -156,6 +186,11 @@ async def admin_update_indicador(
     dimensaoNome: str,
     indicadorNome: str,
     indicadorNovo: Annotated[str | None, Form()] = None,
+    fonteDeDados: Annotated[str | None, Form()] = None,
+    periodicidade: Annotated[str | None, Form()] = None,
+    ultimaAtualizacao: Annotated[str | None, Form()] = None,
+    unidadeMedida: Annotated[str | None, Form()] = None,
+    metodologia: Annotated[str | None, Form()] = None,
     session: Session = Depends(get_db)):
     indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
 
@@ -209,7 +244,24 @@ async def admin_update_indicador(
 
                 print(f"Successfully renamed '{old_object_name}' to '{new_object_name}' in bucket '{bucket_name}'.")
 
+    if (fonteDeDados != None):
+        print(f"fonteDeDados: {fonteDeDados}")
+        referencia = session.scalar(select(referencias.Referencias).where(referencias.Referencias.nome == fonteDeDados))
+        print(referencia)
+        if referencia:
+            existing_indicador.referencia = referencia 
 
+    if(periodicidade != None):
+        existing_indicador.periodicidade = periodicidade
+    
+    if(ultimaAtualizacao != None):
+        existing_indicador.ultimaAtualizacao = ultimaAtualizacao
+        
+    if(unidadeMedida != None):
+        existing_indicador.unidadeMedida = unidadeMedida
+    
+    if(metodologia != None):
+        existing_indicador.metodologia = metodologia
     # Atualize outros campos conforme necessário
 
     # Salva as alterações
@@ -295,7 +347,8 @@ async def admin_post_anexo_indicador(dimensaoNome: str,
 
     return
 
-@indicadorRouter.patch("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/anexos/{idAnexo}/", response_model=anexo_schema.UpdateAnexoIndicadorSchema)
+#@indicadorRouter.patch("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/anexos/{idAnexo}/", response_model=indicador_schema.UpdateAnexoIndicadorSchema)
+@indicadorRouter.patch("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/anexos/{idAnexo}/")
 async def admin_patch_indicador_anexo(dimensaoNome: str,
                                 indicadorNome: str,
                                 idAnexo: int,
@@ -307,14 +360,12 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
                                 session: Session = Depends(get_db)):
 
     # Get dimension and indicator IDs
-    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     indicador_id = await get_model_id(indicadorNome, session, indicador.Indicador)
-    print('sessao',session)
+    print(indicador_id)
     # Find the existing anexo by ID
     existing_anexo = session.scalar(select(anexo.Anexo).where(
         anexo.Anexo.id == idAnexo
     ))
-    print(f"existing_anexo: {existing_anexo}")
 
     if not existing_anexo:
         raise HTTPException(
@@ -335,7 +386,10 @@ async def admin_patch_indicador_anexo(dimensaoNome: str,
     if tituloGrafico != existing_anexo.tituloGrafico:
         existing_anexo.tituloGrafico = tituloGrafico
     
+    
     lista_posicao = list(existing_anexo.posicao)
+    
+    print('Anexo_posicao',existing_anexo.posicao)
     
     if posicaoGrafico != (lista_posicao[0].posicao if lista_posicao else None):
         existing_posicao = session.scalar(select(posicao.Posicao).where(
