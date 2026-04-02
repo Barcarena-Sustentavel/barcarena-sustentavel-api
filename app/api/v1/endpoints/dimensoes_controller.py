@@ -247,8 +247,13 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     #verificação de posição
     posicoes_set = set()
     for current_indicador in indicadores_nomes:
-        if current_indicador['posicao'] in posicoes_set:
+        try:
+            if current_indicador['posicao'] in posicoes_set:
+                current_indicador['posicao'] = max(posicoes_set) + 1
+        except KeyError:
+            print("posicao nao encontrada, adicionando valor default")
             current_indicador['posicao'] = max(posicoes_set) + 1
+            # ou simplesmente pass, ou um valor default
         posicoes_set.add(current_indicador['posicao'])
     
     #print(f"indicadores_nomes(corrigidos): {indicadores_nomes}")
