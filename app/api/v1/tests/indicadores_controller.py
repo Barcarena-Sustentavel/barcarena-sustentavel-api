@@ -29,8 +29,8 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
 
    client = connectMinio()
     #print(anexoIndicador.all())
-    response:indicador_schema.IndicadorGraficos = indicador_schema.IndicadorGraficos(nome=indicadorDimensao.nome, graficos=[])
-    for anexos in anexoIndicador.all():
+   response:indicador_schema.IndicadorGraficos = indicador_schema.IndicadorGraficos(nome=indicadorDimensao.nome, graficos=[])
+   for anexos in anexoIndicador.all():
         path = ""
         #if dimensao_id == 86:
         print(f"anexos.path:{anexos.path}")

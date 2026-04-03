@@ -21,6 +21,21 @@ class IndicadorParameters(str, Enum):
     qualidade_ar= "Qualidade do Ar"
     pib = "PIB"
 
+class AnexoIndicadorSchema(BaseModel):
+    id: int
+    path: Optional[str]
+    descricaoGrafico: Optional[str] 
+    tipoGrafico: Optional[str] 
+    tituloGrafico: Optional[str]
+    posicaoGrafico: Optional[int]
+
+class UpdateAnexoIndicadorSchema(IndicadorSchema):
+    fonteDeDados: Optional[str] = None
+    periodicidade: Optional[str] = None
+    ultimaAtualizacao: Optional[str] = None
+    unidadeMedida: Optional[str] = None
+    metodologia: Optional[str] = None
+    graficos: List[AnexoIndicadorSchema]
 
 class DadosGrafico(BaseModel):
     tipoGrafico: Optional[str]
@@ -32,11 +47,20 @@ class DadosGrafico(BaseModel):
     posicao: Optional[int]
 
 class IndicadorEnviar(IndicadorSchema):
-    periodicidade:str
-    ultimaAtualizacao:str
-    unidadeMedida:str
-    metodologia:str
-    graficos: List[DadosGrafico]
+    fonteDeDados: Optional[str] = None
+    periodicidade: Optional[str] = None
+    ultimaAtualizacao: Optional[str] = None
+    unidadeMedida: Optional[str] = None
+    metodologia: Optional[str] = None
+    graficos:List[DadosGrafico]
+
+class IndicadorEnviarAdmin(IndicadorSchema):
+    fonteDeDados: Optional[str] = None
+    periodicidade: Optional[str] = None
+    ultimaAtualizacao: Optional[str] = None
+    unidadeMedida: Optional[str] = None
+    metodologia: Optional[str] = None
+    graficos:List[AnexoIndicadorSchema]
 
 class IndicadorTrocarPosicao(BaseModel):
     nome:str
