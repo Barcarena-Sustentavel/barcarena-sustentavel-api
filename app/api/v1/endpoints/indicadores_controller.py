@@ -140,46 +140,84 @@ async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, sess
 async def admin_post_indicador(
     dimensaoNome: str,
     indicadorNome: str,
-    referenciaNome:str,
+    referenciaNome: str,
     periodicidade: str,
     ultimaAtualizacao: str,
     unidadeMedida: str,
-    metodologia:str,
-    session: Session = Depends(get_db)):
+    metodologia: str,
+    session: Session = Depends(get_db)
+):
+    try:
+        # Busca o ID da dimensão
+        dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
 
-    dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
-    referencia = session.scalar(select(referencias.Referencias).where(referencias.Referencias.nome == referenciaNome))
-    new_indicador = indicador.Indicador(nome=indicadorNome, 
-                                        fkDimensao_id=dimensao_id,
-                                        referencia = referencia,
-                                        periodicidade = periodicidade,
-                                        ultimaAtualizacao = ultimaAtualizacao,
-                                        unidadeMedida = unidadeMedida,
-                                        metodologia = metodologia)
-    referencia.fkIndicador_id = new_indicador.id
-    session.add(new_indicador)
-    session.flush()
-    
-    session.add(referencia)
-    session.commit()
-    session.refresh(referencia)
-    session.refresh(new_indicador)
+        # Valida se a referência existe
+        referencia = session.scalar(
+            select(referencias.Referencias).where(
+                referencias.Referencias.nome == referenciaNome
+            )
+        )
+        if referencia is None:
+            raise HTTPException(status_code=404, detail=f"Referência '{referenciaNome}' não encontrada")
 
-    indicadores_dimensao = session.scalars(select(indicador.Indicador).where(
-        indicador.Indicador.fkDimensao_id == dimensao_id
-    )).all()
+        # Cria o indicador
+        new_indicador = indicador.Indicador(
+            nome=indicadorNome,
+            fkDimensao_id=dimensao_id,
+            referencia=referencia,
+            periodicidade=periodicidade,
+            ultimaAtualizacao=ultimaAtualizacao,
+            unidadeMedida=unidadeMedida,
+            metodologia=metodologia
+        )
 
-    ultima_posicao = session.scalar(select(func.max(posicao.Posicao.posicao)).where(posicao.Posicao.fkIndicador_id.in_([ind.id for ind in indicadores_dimensao])))
-    if ultima_posicao == None:
-        ultima_posicao = 0
-    else:
-        ultima_posicao += 1
-    new_indicador_posicao = posicao.Posicao(posicao= ultima_posicao,fkIndicador_id=new_indicador.id, fkAnexo_id=None)
-    session.add(new_indicador_posicao)
-    session.commit()
-    session.refresh(new_indicador_posicao)
+        session.add(new_indicador)
+        session.flush()  # Gera o new_indicador.id antes de usá-lo
 
-    return
+        # Agora que o id existe, atualiza a referência
+        referencia.fkIndicador_id = new_indicador.id
+        session.add(referencia)
+        session.flush()
+
+        # Calcula a próxima posição dentro da dimensão
+        indicadores_dimensao = session.scalars(
+            select(indicador.Indicador).where(
+                indicador.Indicador.fkDimensao_id == dimensao_id
+            )
+        ).all()
+
+        ultima_posicao = session.scalar(
+            select(func.max(posicao.Posicao.posicao)).where(
+                posicao.Posicao.fkIndicador_id.in_([ind.id for ind in indicadores_dimensao])
+            )
+        )
+
+        proxima_posicao = 0 if ultima_posicao is None else ultima_posicao + 1
+
+        new_indicador_posicao = posicao.Posicao(
+            posicao=proxima_posicao,
+            fkIndicador_id=new_indicador.id,
+            fkAnexo_id=None
+        )
+        session.add(new_indicador_posicao)
+
+        session.commit()
+        session.refresh(new_indicador)
+        session.refresh(referencia)
+        session.refresh(new_indicador_posicao)
+
+        return {
+            "id": new_indicador.id,
+            "nome": new_indicador.nome,
+            "posicao": new_indicador_posicao.posicao,
+            "fkDimensao_id": new_indicador.fkDimensao_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Erro interno ao criar indicador: {str(e)}")
 
 @indicadorRouter.patch("/admin/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/")
 async def admin_update_indicador(
