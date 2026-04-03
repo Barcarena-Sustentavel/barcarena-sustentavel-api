@@ -10,5 +10,7 @@ class Referencias(Base):
     nome = Column(String, nullable=False)
     link = Column(String, nullable=True)
     fkDimensao_id = Column(Integer, ForeignKey("barcarena_sustentavel.Dimensao.id"), nullable=False)
+    fkIndicador_id = Column(Integer, ForeignKey("barcarena_sustentavel.Indicador.id"), nullable=True)
 
     dimensao = relationship("Dimensao", back_populates="referencias")
+    indicador = relationship("Indicador", back_populates="referencia")

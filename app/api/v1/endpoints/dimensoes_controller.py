@@ -32,7 +32,7 @@ dimensaoRouter = APIRouter()
 async def get_dimensoes(session: Session = Depends(get_db)) -> Any:
     dimensao_data = session.scalars(select(dimensao.Dimensao))
     dimensao_sorted:list = sorted(dimensao_data.all(), key=lambda d: d.id)
-    #print(dimensao_sorted)
+    print('dimensao_sorted',dimensao_sorted)
     dimensao_nome:list = []
     for d in dimensao_sorted:
         dimensao_nome.append(d.nome)
