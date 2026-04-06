@@ -13,7 +13,7 @@ from app.api.v1.endpoints.auth.auth import signJWT
 import logging
 import os
 from datetime import datetime
-
+import hashlib
 userRouter = APIRouter()
 
 @userRouter.post("/user/signup", tags=["user"])
@@ -36,8 +36,10 @@ async def create_user(user: UserSchema = Body(...), session: Session = Depends(g
 @userRouter.post("/user/login", tags=["user"])
 async def user_login(user: UserSchema = Body(...), session: Session = Depends(get_db)):
     existing_user = session.scalar(select(User).where(User.username == user.username))
-
     if(existing_user):
-        if(existing_user.hashed_password == user.hashed_password):
+        hash_input_password = hashlib.sha256(user.hashed_password.encode()).hexdigest()
+        if(existing_user.hashed_password == hash_input_password):
+            print("login successful")
             return signJWT(existing_user.id)
-    return {"error": "Wrong login details!"}
+    raise HTTPException(status_code=HTTPStatus.UNAUTHORIZED, detail="Invalid username or password.")    
+
