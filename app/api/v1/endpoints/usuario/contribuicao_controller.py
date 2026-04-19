@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.core.database import get_db
 from http import HTTPStatus
-from .aux_.get_model_id import get_model_id
+from app.api.v1.endpoints.aux_.get_model_id import get_model_id
 from typing import List, Annotated
 import smtplib
 # from email.mime.text import MIMEText

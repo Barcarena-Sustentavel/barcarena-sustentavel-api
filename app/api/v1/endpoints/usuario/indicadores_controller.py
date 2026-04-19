@@ -3,7 +3,7 @@ from app.domain.models import dimensao ,anexo,indicador, posicao, referencias
 from sqlalchemy import select, and_, func
 from sqlalchemy.orm import Session
 from fastapi import APIRouter,Depends, HTTPException
-from .aux_.get_model_id import get_model_id
+from app.api.v1.endpoints.aux_.get_model_id import get_model_id
 from app.core.database import get_db
 from http import HTTPStatus
 from minio import Minio

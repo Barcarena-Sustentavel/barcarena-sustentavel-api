@@ -8,6 +8,9 @@ from app.api.v1.endpoints.aux_.checarListarVazia import checarListaVazia
 from app.core.database import get_db
 from sqlalchemy import select
 from app.api.v1.endpoints.aux_.minio import connectMinio
+from minio.commonconfig import CopySource
+from fastapi.responses import StreamingResponse
+
 
 dimensaoRouterAdm = APIRouter()
 
@@ -108,7 +111,7 @@ def get_dimensao_artigo(dimensaoNome: str):
         raise HTTPException(status_code=500, detail=f"Erro ao buscar artigo: {str(e)}")
     
 @dimensaoRouterAdm.patch("/admin/dimensoes/{dimensaoNome}/", status_code=HTTPStatus.OK)
-async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.DimensaoSchema,session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
+async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.DimensaoSchema,session: Session = Depends(get_db),status_code=HTTPStatus.OK):
     dimensao_data = session.scalar(select(dimensao.Dimensao).where(
         dimensao.Dimensao.nome == dimensaoNome
     ))

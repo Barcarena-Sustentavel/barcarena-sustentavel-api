@@ -1,5 +1,6 @@
-from app.domain.models import indicador, Anexo, Posicao
-
+from app.domain.models import indicador
+from app.domain.models.anexo import Anexo
+from app.domain.models.posicao import Posicao
 def checarListaVazia(lista_all:list, lista_json:list, inserirPosicao:bool, session):
     if len(lista_all) == 0:
         pass
