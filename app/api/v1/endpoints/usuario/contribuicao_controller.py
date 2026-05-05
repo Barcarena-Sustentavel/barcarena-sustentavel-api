@@ -27,17 +27,6 @@ async def post_contribuicao(background: BackgroundTasks,
     session: Session = Depends(get_db) ,
     status_code=HTTPStatus.CREATED):
     
-    # dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
-    # contribuicao_post = contribuicao.Contribuicao(nome=contribuicaoNova.nome, 
-    #                                             comentario = contribuicaoNova.comentario,
-    #                                             email=contribuicaoNova.email,
-    #                                             telefone=contribuicaoNova.telefone,
-    #                                             fkDimensao_id=dimensao_id,
-    #                                             path = contribuicaoNova.path)
-    # session.add(contribuicao_post)
-    # session.commit()
-    # session.refresh(contribuicao_post)
-    
     arquivo_nome = None
     arquivo_dados = None
     arquivo_mime_type = None
@@ -52,12 +41,6 @@ async def post_contribuicao(background: BackgroundTasks,
             status_code=422,
             detail="E-mail deve ser menor que 250 caracteres."
         )
-    # if telefone and (not telefone.isnumeric() or len(telefone) <= 11):
-    #     raise HTTPException(
-    #         status_code=422,
-    #         detail="Telefone deve ser 11 dígitos (DDD + número de telefone) e conter apenas caracteres numéricos."
-    #     )
-        # or (len(await file.read()) / (1024 * 1024)) > 25)
     if file:
         if file.content_type != "application/pdf":
             raise HTTPException(
