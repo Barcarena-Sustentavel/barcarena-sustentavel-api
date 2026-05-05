@@ -11,6 +11,9 @@ print(node_env)
 database_url = "postgresql://barcarena_sustentavel:barcarenasustentavel@54.233.210.68:6000/barcarena_sustentavel"
 if node_env == 'production':
     database_url ="postgresql://barcarena_sustentavel:barcarenasustentavel@barcarena-postgresql:5432/barcarena_sustentavel"
+    
+if node_env == 'local_production':
+    database_url = "postgresql://barcarena_sustentavel:barcarenasustentavel@54.233.210.68:5432/barcarena_sustentavel"
 print(database_url)
 SQLALCHEMY_DATABASE_URL = database_url
 engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True) # pool_pre_ping for robust connections

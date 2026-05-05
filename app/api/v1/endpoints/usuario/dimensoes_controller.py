@@ -1,6 +1,5 @@
 from sqlalchemy.sql import false
 from app.domain.models.anexo import Anexo
-from fastapi.responses import StreamingResponse
 from io import BytesIO
 from app.domain.models.anexo import Anexo
 from app.domain.models.posicao import Posicao
@@ -12,31 +11,33 @@ from app.core.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import Any, Annotated, Optional
-from minio.commonconfig import CopySource
-from .aux.get_model_id import get_model_id
+from app.api.v1.endpoints.aux_.get_model_id import get_model_id
 from minio import Minio
 import base64
 import os
 import re
-from app.dependencies import connectMinio
-
-
+from app.api.v1.endpoints.aux_.minio import connectMinio
+from app.api.v1.endpoints.aux_.checarListarVazia import checarListaVazia
 
 dimensaoRouter = APIRouter()
-
-#Retorna todos os indicadores de uma dimensão
-#dimensaoNome: nome da dimensão
-#session: sessão do banco de dados
 
 @dimensaoRouter.get("/dimensoes/")
 async def get_dimensoes(session: Session = Depends(get_db)) -> Any:
     dimensao_data = session.scalars(select(dimensao.Dimensao))
-    dimensao_sorted:list = sorted(dimensao_data.all(), key=lambda d: d.id)
-    print('dimensao_sorted',dimensao_sorted)
+    dimensao_data_all = dimensao_data.all()
+    dimensao_data_nome_posicao = []
+    for dimensao_id in dimensao_data_all:
+        dimensao_nome_posicao = {
+            "nome":dimensao_id.nome,
+            "posicao": dimensao_id.posicao[0].posicao
+        }
+        dimensao_data_nome_posicao.append(dimensao_nome_posicao)
+    dimensao_sorted:list = sorted(dimensao_data_nome_posicao, key=lambda d: d["posicao"])
     dimensao_nome:list = []
     for d in dimensao_sorted:
-        dimensao_nome.append(d.nome)
+        dimensao_nome.append(d["nome"])
     return {"dimensoes":dimensao_nome}
+
 
 @dimensaoRouter.get("/dimensoes/{dimensaoNome}/")
 async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) -> Any:
@@ -73,31 +74,6 @@ async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) ->
         estudosComplementaresDimensao.append(c.nome)
 
     return {"dimensao":dimensao_data_json, "indicadores":indicadoresDimensao, "referencias":refsIndicador, "estudos_complementares":estudosComplementaresDimensao}
-
-@dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/artigoDimensao")
-def get_dimensao_artigo(dimensaoNome: str):
-    client = connectMinio()
-
-    bucket_name:str = "anexos-barcarena"
-    try:
-        prefix = f"{dimensaoNome}/Artigo/"
-        objetos = list(client.list_objects(bucket_name, prefix=prefix, recursive=True))
-
-        if not objetos:
-            raise HTTPException(status_code=404, detail=f"Nenhum artigo encontrado para dimensão {dimensao}")
-
-        # pega o primeiro arquivo encontrado
-        artigo_obj = objetos[0]
-        response = client.get_object(bucket_name, artigo_obj.object_name)
-
-        nome_artigo = artigo_obj.object_name.split("/")[-1]  # extrai o nome do arquivo
-        return StreamingResponse(
-            response,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"inline; filename={nome_artigo}"}
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao buscar artigo: {str(e)}")
 
 async def save_artigo(dimensaoNome: str, file: UploadFile, patch: bool):
     client = connectMinio()
@@ -138,65 +114,6 @@ def delete_dimensao_artigo(dimensaoNome: str):
         return {"message": f"Arquivo {artigo_obj.object_name} removido com sucesso"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao remover arquivo: {str(e)}")
-@dimensaoRouter.patch("/admin/dimensoes/{dimensaoNome}/", status_code=HTTPStatus.OK)
-async def update_dimensao(dimensaoNome: str, update_dimensao:dimesao_schema.DimensaoSchema,session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> Any:
-    dimensao_data = session.scalar(select(dimensao.Dimensao).where(
-        dimensao.Dimensao.nome == dimensaoNome
-    ))
-    
-    if not dimensao_data:
-        raise HTTPException(status_code=404, detail="Dimensão não encontrada")
-
-    if dimensao_data.nome != update_dimensao.nome and update_dimensao.nome != "":
-        dimensao_data.nome = update_dimensao.nome
-        client = connectMinio()
-
-        #for anexo in dimensao_data.anexos:
-        for pos in range(len(dimensao_data.anexos)):
-            path = dimensao_data.anexos[pos].path
-            re_path = re.sub(rf"^{dimensaoNome}", update_dimensao.nome,path)
-            dimensao_data.anexos[pos].path = re_path
-
-        bucket_name = "anexos-barcarena"
-        objects_to_move = client.list_objects(bucket_name, prefix=dimensaoNome, recursive=True)
-
-    client = connectMinio()
-
-    bucket_name = "anexos-barcarena"
-    objects_to_move = client.list_objects(bucket_name, prefix=dimensaoNome, recursive=True)
-
-    for obj in objects_to_move:
-            old_object_name = obj.object_name
-            new_object_name = old_object_name.replace(dimensaoNome, update_dimensao.nome, 1)
-
-            print(f"Antigo objeto: {old_object_name}")
-            print(f"Novo objeto: {new_object_name}")
-            source = CopySource(bucket_name, old_object_name)
-            client.copy_object(
-                bucket_name,
-                new_object_name,
-                source
-                #old_object_name
-            )
-            print(f"Copied '{old_object_name}' to '{new_object_name}'")
-
-            # Remove the old object
-            client.remove_object(bucket_name, old_object_name)
-            print(f"Removed '{old_object_name}'")
-
-            print(f"Successfully renamed '{old_object_name}' to '{new_object_name}' in bucket '{bucket_name}'.")
-
-    if dimensao_data.descricao != update_dimensao.descricao and update_dimensao.descricao != "":
-        dimensao_data.descricao = update_dimensao.descricao
-
-   
-
-
-    session.commit()
-    session.refresh(dimensao_data)
-
-    # Return updated data in same format as GET
-    return {"dimensao": dimesao_schema.DimensaoSchema(nome=dimensao_data.nome, descricao=dimensao_data.descricao)}
 
 #Criado somente para ser utilizado na parte de administrador
 @dimensaoRouter.get("/admin/dimensoes/{dimensaoNome}/")
@@ -258,30 +175,8 @@ async def get_dimensao_admin(dimensaoNome: str, session: Session = Depends(get_d
     
     #print(f"indicadores_nomes(corrigidos): {indicadores_nomes}")
     
-    
-
     checarListaVazia(estudos_complementares_all, estudos_complementares_nomes, False, session)
     return {"dimensao":dados_dimensao_json,"referencias": referencias_nomes, "indicadores": indicadores_nomes, "artigo": nome_artigo, "estudos_complementares": estudos_complementares_nomes}
-
-def checarListaVazia(lista_all:list, lista_json:list, inserirPosicao:bool, session):
-    if len(lista_all) == 0:
-        pass
-    else:
-        for element in lista_all:
-            json_element:dict = {}
-            json_element["nome"] = element.nome
-            if(inserirPosicao):
-                if isinstance(element, indicador.Indicador):
-                    posicao = session.query(Posicao).filter(Posicao.fkIndicador_id == element.id).first()
-                    if posicao is not None:
-                        json_element["posicao"] = posicao.posicao
-                elif isinstance(element, Anexo):
-                    posicao = session.query(Posicao).filter(Posicao.fkAnexo_id == element.id).first()
-                    if posicao is not None:
-                        json_element["posicao"] = posicao.posicao
-            else:
-                json_element["posicao"] = None
-            lista_json.append(json_element)
 
 @dimensaoRouter.post("/admin/dimensoes/{dimensaoNome}/estudo_complementar/", status_code=HTTPStatus.CREATED)
 async def create_estudo_complementar(
