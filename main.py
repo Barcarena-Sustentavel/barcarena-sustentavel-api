@@ -5,6 +5,7 @@ from app.api.router import router as api_router
 app = FastAPI(
     title="Barcarena Sustentavel",
     version="0.0.1",
+    redirect_slashes=False
 )
 
 app.add_middleware(
