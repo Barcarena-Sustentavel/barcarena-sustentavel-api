@@ -66,7 +66,10 @@ async def get_dimensao(dimensaoNome: str, session: Session = Depends(get_db)) ->
         posicao = session.scalar(select(Posicao).where(
             Posicao.fkIndicador_id == a.id
         ))
-        indicadoresDimensao.append({'nome': a.nome, 'posicao': posicao.posicao if posicao else 0, 'fonteDados': a.referencia.nome if a.referencia else None})
+        if(len(a.referencias_associadas) > 0):
+            print(a.referencias_associadas[0].referencia.nome)
+        #indicadoresDimensao.append({'nome': a.nome, 'posicao': posicao.posicao if posicao else 0, 'fonteDados': a.referencia.nome if a.referencia else None})
+        indicadoresDimensao.append({'nome': a.nome, 'posicao': posicao.posicao if posicao else 0, 'fonteDados': [b.referencia.nome for b in a.referencias_associadas] if len(a.referencias_associadas) > 0 else None})
  
     for b in refsall:
         refsIndicador.append(referencia_schema.ReferenciaSchema(id=b.id, nome=b.nome, fkDimensao=b.fkDimensao_id, link=b.link))
