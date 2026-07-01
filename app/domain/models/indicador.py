@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from app.domain.models.base import Base
+from app.domain.models.indicadorReferencia import IndicadorReferencia
 
 class Indicador(Base):
     __tablename__ = "Indicador"
@@ -17,4 +18,5 @@ class Indicador(Base):
     dimensao = relationship("Dimensao", back_populates="indicadores")
     anexos = relationship("Anexo", back_populates="indicador")
     posicao = relationship("Posicao", back_populates="indicador")
-    referencia = relationship("Referencias", back_populates="indicador", uselist=False)
+    #referencia = relationship("Referencias", back_populates="indicador", uselist=False)
+    referencias_associadas = relationship(IndicadorReferencia, back_populates="indicador")

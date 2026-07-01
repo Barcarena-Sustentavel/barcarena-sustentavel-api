@@ -1,5 +1,5 @@
 from app.domain.schemas import indicador_schema, anexo_schema
-from app.domain.models import dimensao ,anexo,indicador, posicao, referencias
+from app.domain.models import dimensao ,anexo,indicador, posicao, referencias, indicadorReferencia
 from sqlalchemy import select, and_, func
 from sqlalchemy.orm import Session
 from fastapi import APIRouter,Depends, HTTPException
@@ -16,7 +16,6 @@ import io
 import re
 import pandas as pd
 from app.dependencies import connectMinio
-from app.core.database import Environment
 indicadorRouter = APIRouter()
 @indicadorRouter.get("/dimensoes/{dimensaoNome}/indicador/{indicadorNome}/", response_model=indicador_schema.IndicadorEnviar)
 async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
@@ -28,10 +27,18 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
         anexo.Anexo.fkIndicador_id == await get_model_id(indicadorNome, session, indicador.Indicador)
     ))
     client = connectMinio()
+    
+    referenciasAssociadas = []
+    
+    if len(indicadorDimensao.referencias_associadas) > 0:
+        for indicadorReferencia in indicadorDimensao.referencias_associadas:
+            referenciasAssociadas.append(indicadorReferencia.referencia.nome)
+    
+    
     response: indicador_schema.IndicadorEnviar = indicador_schema.IndicadorEnviar(
     nome=indicadorDimensao.nome,
     graficos=[],
-    fonteDeDados=indicadorDimensao.referencia.nome if indicadorDimensao.referencia else None,
+    fonteDeDados=referenciasAssociadas,
     periodicidade=indicadorDimensao.periodicidade if indicadorDimensao.periodicidade else None,
     ultimaAtualizacao=indicadorDimensao.ultimaAtualizacao if indicadorDimensao.ultimaAtualizacao else None,
     unidadeMedida=indicadorDimensao.unidadeMedida if indicadorDimensao.unidadeMedida else None,
@@ -112,13 +119,17 @@ async def get_indicador(dimensaoNome: str, indicadorNome: str, session: Session 
 async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, session: Session = Depends(get_db), status_code=HTTPStatus.OK):
     dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
     indicadorDimensao = session.scalar(select(indicador.Indicador).where(
-        indicador.Indicador.nome == indicadorNome and indicador.Indicador.fkDimensao_id == dimensao_id
+        indicador.Indicador.nome == indicadorNome, indicador.Indicador.fkDimensao_id == dimensao_id
     ))
     anexoIndicador = session.scalars(select(anexo.Anexo).where(
         anexo.Anexo.fkIndicador_id == await get_model_id(indicadorNome, session, indicador.Indicador)
     ))
+    referenciasIndicador = []
+    if len(indicadorDimensao.referencias_associadas) > 0:
+        for r in indicadorDimensao.referencias_associadas:
+            referenciasIndicador.append(r.referencia.nome)
     response:indicador_schema.IndicadorEnviarAdmin = indicador_schema.IndicadorEnviarAdmin(nome=indicadorDimensao.nome,
-                                                                                                fonteDeDados=indicadorDimensao.referencia.nome if indicadorDimensao.referencia else "",
+                                                                                                fonteDeDados=referenciasIndicador,
                                                                                                 periodicidade=indicadorDimensao.periodicidade if indicadorDimensao.periodicidade else "",
                                                                                                 ultimaAtualizacao=indicadorDimensao.ultimaAtualizacao if indicadorDimensao.ultimaAtualizacao else "",
                                                                                                 unidadeMedida=indicadorDimensao.unidadeMedida if indicadorDimensao.unidadeMedida else "",
@@ -140,31 +151,33 @@ async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, sess
 async def admin_post_indicador(
     dimensaoNome: str,
     indicadorNome: str,
-    referenciaNome: str,
+    referenciasNome: list[str],
     periodicidade: str,
     ultimaAtualizacao: str,
     unidadeMedida: str,
     metodologia: str,
     session: Session = Depends(get_db)
 ):
+    
     try:
         # Busca o ID da dimensão
         dimensao_id = await get_model_id(dimensaoNome, session, dimensao.Dimensao)
 
-        # Valida se a referência existe
-        referencia = session.scalar(
+        #Pega todas as referencias
+        referenciaAll = session.scalars(
             select(referencias.Referencias).where(
-                referencias.Referencias.nome == referenciaNome
+                referencias.Referencias.nome.in_(referenciasNome)
             )
-        )
-        if referencia is None:
-            raise HTTPException(status_code=404, detail=f"Referência '{referenciaNome}' não encontrada")
+        ).all()
+        if referenciaAll is None:
+            raise HTTPException(status_code=404, detail=f"Referência '{referenciaAll}' não encontrada")
 
+        copyReferenciaAll = referenciaAll
+        
         # Cria o indicador
         new_indicador = indicador.Indicador(
             nome=indicadorNome,
             fkDimensao_id=dimensao_id,
-            referencia=referencia,
             periodicidade=periodicidade,
             ultimaAtualizacao=ultimaAtualizacao,
             unidadeMedida=unidadeMedida,
@@ -175,8 +188,10 @@ async def admin_post_indicador(
         session.flush()  # Gera o new_indicador.id antes de usá-lo
 
         # Agora que o id existe, atualiza a referência
-        referencia.fkIndicador_id = new_indicador.id
-        session.add(referencia)
+        #referencia.fkIndicador_id = new_indicador.id
+        #Adiciona todas as referencias
+        session.add_all([indicadorReferencia.IndicadorReferencia(fkIndicador_id=new_indicador.id, fkReferencia_id=referencia.id) for referencia in copyReferenciaAll])
+        #session.add(referencia)
         session.flush()
 
         # Calcula a próxima posição dentro da dimensão
@@ -203,7 +218,7 @@ async def admin_post_indicador(
 
         session.commit()
         session.refresh(new_indicador)
-        session.refresh(referencia)
+        #session.refresh(referencia)
         session.refresh(new_indicador_posicao)
 
         return {
@@ -224,7 +239,7 @@ async def admin_update_indicador(
     dimensaoNome: str,
     indicadorNome: str,
     indicadorNovo: Annotated[str | None, Form()] = None,
-    fonteDeDados: Annotated[str | None, Form()] = None,
+    fonteDeDados: Annotated[list[str] | None, Form()] = None,
     periodicidade: Annotated[str | None, Form()] = None,
     ultimaAtualizacao: Annotated[str | None, Form()] = None,
     unidadeMedida: Annotated[str | None, Form()] = None,
@@ -283,11 +298,35 @@ async def admin_update_indicador(
                 print(f"Successfully renamed '{old_object_name}' to '{new_object_name}' in bucket '{bucket_name}'.")
 
     if (fonteDeDados != None):
-        print(f"fonteDeDados: {fonteDeDados}")
-        referencia = session.scalar(select(referencias.Referencias).where(referencias.Referencias.nome == fonteDeDados))
-        print(referencia)
-        if referencia:
-            existing_indicador.referencia = referencia 
+        #print(f"fonteDeDados: {fonteDeDados}")
+        if (len(existing_indicador.referencias_associadas) == 0):
+            novasReferencias = []
+            for referencia in fonteDeDados:
+                buscarReferencia = session.scalar(select(referencias.Referencias).where(referencias.Referencias.nome == referencia))
+                novasReferencias.append(indicadorReferencia.IndicadorReferencia(fkIndicador_id=existing_indicador.id, fkReferencia_id=buscarReferencia.id))
+            session.add_all(novasReferencias)
+        
+        indicadorReferenciasAtuais = []
+        for referencia in existing_indicador.referencias_associadas:
+            indicadorReferenciasAtuais.append(referencia.nome)
+        
+        novasReferencias = []
+        for referencia in fonteDeDados:
+            if referencia not in indicadorReferenciasAtuais:
+                buscarReferencia = session.scalar(select(referencias.Referencias).where(referencias.Referencias.nome == referencia))
+                novasReferencias.append(buscarReferencia.id)
+        
+        novosIndicadorReferencias = []
+        for idReferencia in novasReferencias:
+            novosIndicadorReferencias.append(indicadorReferencia.IndicadorReferencia(fkIndicador_id=existing_indicador.id, fkReferencia_id=idReferencia))
+        
+        if len(novosIndicadorReferencias) > 0:
+            session.add_all(novosIndicadorReferencias)
+        # Verificar a diferença entre as duas listas
+        #referencia = session.scalar(select(referencias.Referencias).where(referencias.Referencias.nome == fonteDeDados))
+        #print(referencia)
+        #if referencia:
+        #    existing_indicador.referencia = referencia 
 
     if(periodicidade != None):
         existing_indicador.periodicidade = periodicidade

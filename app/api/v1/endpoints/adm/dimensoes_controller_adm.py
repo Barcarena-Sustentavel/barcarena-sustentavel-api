@@ -11,7 +11,6 @@ from app.api.v1.endpoints.aux_.minio import connectMinio
 from minio.commonconfig import CopySource
 from fastapi.responses import StreamingResponse
 
-
 dimensaoRouterAdm = APIRouter()
 
 @dimensaoRouterAdm.get("/admin/dimensoes/{dimensaoNome}/dimensao")

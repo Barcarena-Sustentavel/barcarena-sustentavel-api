@@ -47,7 +47,7 @@ class DadosGrafico(BaseModel):
     posicao: Optional[int]
 
 class IndicadorEnviar(IndicadorSchema):
-    fonteDeDados: Optional[str] = None
+    fonteDeDados: Optional[list[str]] = None
     periodicidade: Optional[str] = None
     ultimaAtualizacao: Optional[str] = None
     unidadeMedida: Optional[str] = None
@@ -55,7 +55,7 @@ class IndicadorEnviar(IndicadorSchema):
     graficos:List[DadosGrafico]
 
 class IndicadorEnviarAdmin(IndicadorSchema):
-    fonteDeDados: Optional[str] = None
+    fonteDeDados: Optional[list[str]] = None
     periodicidade: Optional[str] = None
     ultimaAtualizacao: Optional[str] = None
     unidadeMedida: Optional[str] = None
