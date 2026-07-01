@@ -150,12 +150,12 @@ async def admin_get_indicador_detail(dimensaoNome: str, indicadorNome: str, sess
 @indicadorRouter.post("/admin/dimensoes/{dimensaoNome}/indicador/", status_code=HTTPStatus.CREATED)
 async def admin_post_indicador(
     dimensaoNome: str,
-    indicadorNome: str,
-    referenciasNome: list[str],
-    periodicidade: str,
-    ultimaAtualizacao: str,
-    unidadeMedida: str,
-    metodologia: str,
+    indicadorNome: Annotated[str, Form()],
+    referenciasNome: Annotated[list[str], Form()],
+    periodicidade: Annotated[str, Form()],
+    ultimaAtualizacao: Annotated[str, Form()],
+    unidadeMedida: Annotated[str, Form()],
+    metodologia: Annotated[str, Form()],
     session: Session = Depends(get_db)
 ):
     
@@ -308,7 +308,7 @@ async def admin_update_indicador(
         
         indicadorReferenciasAtuais = []
         for referencia in existing_indicador.referencias_associadas:
-            indicadorReferenciasAtuais.append(referencia.nome)
+            indicadorReferenciasAtuais.append(referencia.referencia.nome)
         
         novasReferencias = []
         for referencia in fonteDeDados:

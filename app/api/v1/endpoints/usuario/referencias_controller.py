@@ -1,7 +1,7 @@
 from fastapi import APIRouter,Depends, HTTPException, exceptions, Query
 from typing import Annotated
 from app.domain.schemas import referencia_schema 
-from app.domain.models import dimensao, referencias
+from app.domain.models import dimensao, referencias, indicadorReferencia
 from app.domain.schemas.response_schemas.get_dimensao_response import DimensaoData
 from http import HTTPStatus
 from app.core.database import get_db
@@ -84,6 +84,15 @@ async def delete_admin_referencias(dimensaoNome: str, nome: str, session: Sessio
 
     return
 
+@referenciasRouter.delete("/admin/dimensoes/{dimensaoNome}/indicadorReferencias/{referenciaNome}/", status_code=HTTPStatus.NO_CONTENT)
+async def delete_admin_referencias(dimensaoNome: str, referenciaNome: str, session: Session = Depends(get_db),status_code=HTTPStatus.OK) -> None:
+    referencia_id = await get_model_id(referenciaNome, session, referencias.Referencias)
+    referencia_data = session.scalar(select(indicadorReferencia.IndicadorReferencia).where(
+        indicadorReferencia.IndicadorReferencia.fkReferencia_id == referencia_id
+    ))
+    session.delete(referencia_data)
+    session.commit()
 
+    return
     
     
